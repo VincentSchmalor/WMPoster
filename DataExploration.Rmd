@@ -1,0 +1,80 @@
+---
+title: "Data Exploration"
+author: "Vincent Schmalor"
+date: "6 12 2019"
+output: pdf_document
+#classoption: landscape
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(mosaic)
+test <- read.csv2("sources/Trainingsdaten.csv")
+```
+
+# Einleitung
+Dieses Dokument wendet einige Operationen auf den Datensets an, um sie näher kennen zu lernen und zu verstehen
+
+## Funktionen
+```{r}
+#Lösche alle Ausreißer, die außerhalb der Antennen eines Boxplots liegen würden
+remove_outliers <- function(x, na.rm = TRUE, ...) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = na.rm, ...) # Vektor mit Quartilen 25% und 75% erstellen
+  H <- 1.3 * IQR(x, na.rm = na.rm) #Antennenberechnung
+  y <- x
+  y[x < (qnt[1] - H)] <- NA #Untere Ausreißer entfernen
+  y[x > (qnt[2] + H)] <- NA #Obere Ausreißer
+  y
+}
+
+```
+
+# Data-set vorbereiten
+## Rohdaten
+```{r inspect}
+inspect(test)
+head(test)
+favstats(~ X10.1, data = test)
+```
+
+## Richtige Datentypen und Bezeichnungen
+```{r}
+test <- mutate_at(test, vars(#"X7.1","X7.2","X7.3","X7.4","X7.5","X7.6","X7.7",
+  "X9.1","X9.2","X9.3","X9.4","X9.5","X9.6","X9.7","X9.8","D2"), funs(factor(.)))
+colnames(test) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale Institutionen","Alter","Geschlecht","EKWert")
+head(test)
+```
+
+##Ausreißer bereinigen
+```{r}
+col_EKW <- pull(test, EKWert) #Spalte extrahieren, um Ausreißer zu identifizieren
+cl_test <- test %>% mutate("cleanedEKWert" = remove_outliers(col_EKW)) #Ausreißer nullen und in neues Datenset speichern
+inspect(cl_test)
+head(cl_test[is.na(cl_test$cleanedEKWert),])
+cl_test <- cl_test %>% filter(!is.na(cleanedEKWert)) #Datenset um Ausreißer bereinigen
+inspect(cl_test)
+cl_test <- subset(cl_test, select = -(cleanedEKWert))
+inspect(cl_test)
+```
+
+
+# Data-set anschauen
+## Original
+```{r}
+gf_histogram(~ EKWert, data = test, binwidth = 25, center = 25)
+gf_point(EKWert ~ Alter, data= test, colour = ~ Geschlecht)
+```
+
+## Bereinigt
+```{r}
+gf_histogram(~ EKWert, data = cl_test, binwidth = 25, center = 25)
+gf_point(EKWert ~ Alter, data= cl_test, colour = ~ Geschlecht)
+```
+
+# Analysen anstellen
+```{r}
+for (col in ) {
+  cor(EKWert ~ col, data = cl_test)
+}
+```
+
