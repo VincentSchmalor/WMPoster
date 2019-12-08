@@ -2,13 +2,17 @@
 title: "Data Exploration"
 author: "Vincent Schmalor"
 date: "6 12 2019"
-output: pdf_document
+output: html_document
 #classoption: landscape
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 library(mosaic)
+library(corrplot)
+library(kableExtra)
+library(reshape2)
+source("http://www.sthda.com/upload/rquery_cormat.r")
 test <- read.csv2("sources/Trainingsdaten.csv")
 ```
 
@@ -26,55 +30,72 @@ remove_outliers <- function(x, na.rm = TRUE, ...) {
   y[x > (qnt[2] + H)] <- NA #Obere Ausreißer
   y
 }
-
+multi.fun <- function(x) {
+      c(min = min(x), mean = mean(x), max = max(x), sd = sd(x), q1 = quantile(x, 0.25), med = median(x), q3 = quantile(x,0.75))
+}
 ```
 
 # Data-set vorbereiten
 ## Rohdaten
+Kurzer Überblick über die vorhandenen Daten in ihrer Rohform
 ```{r inspect}
-inspect(test)
-head(test)
-favstats(~ X10.1, data = test)
+#inspect(test)
+kable(head(test, n= 10)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+kable(apply(test, 2, multi.fun)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
 ## Richtige Datentypen und Bezeichnungen
+Kurzer Überblick über die Daten mit richtigen Spaltenbeschriftungen, um sie interpretieren zu können
 ```{r}
-test <- mutate_at(test, vars(#"X7.1","X7.2","X7.3","X7.4","X7.5","X7.6","X7.7",
-  "X9.1","X9.2","X9.3","X9.4","X9.5","X9.6","X9.7","X9.8","D2"), funs(factor(.)))
+cols <- c(#"X7.1","X7.2","X7.3","X7.4","X7.5","X7.6","X7.7",
+  "X9.1","X9.2","X9.3","X9.4","X9.5","X9.6","X9.7","X9.8","D2")
+test[cols] <- lapply(test[cols], factor)
 colnames(test) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale Institutionen","Alter","Geschlecht","EKWert")
-head(test)
+kable(head(test, n= 10)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-##Ausreißer bereinigen
+## Ausreißer bereinigen
+Ausreißer identifizieren und bereinigtes Dataset in "cl_test" speichern.
 ```{r}
 col_EKW <- pull(test, EKWert) #Spalte extrahieren, um Ausreißer zu identifizieren
 cl_test <- test %>% mutate("cleanedEKWert" = remove_outliers(col_EKW)) #Ausreißer nullen und in neues Datenset speichern
-inspect(cl_test)
-head(cl_test[is.na(cl_test$cleanedEKWert),])
 cl_test <- cl_test %>% filter(!is.na(cleanedEKWert)) #Datenset um Ausreißer bereinigen
-inspect(cl_test)
 cl_test <- subset(cl_test, select = -(cleanedEKWert))
-inspect(cl_test)
+kable(head(test, n= 10)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
 
 # Data-set anschauen
-## Original
+## Histogramm
 ```{r}
-gf_histogram(~ EKWert, data = test, binwidth = 25, center = 25)
-gf_point(EKWert ~ Alter, data= test, colour = ~ Geschlecht)
+gf_histogram(~ EKWert, data = test, binwidth = 50, center = 50, title = "Original")
+gf_histogram(~ EKWert, data = cl_test, binwidth = 50, center = 50, title = "Bereinigt")
 ```
 
-## Bereinigt
+## Punktwolken
 ```{r}
-gf_histogram(~ EKWert, data = cl_test, binwidth = 25, center = 25)
-gf_point(EKWert ~ Alter, data= cl_test, colour = ~ Geschlecht)
+gf_point(EKWert ~ Alter, data= test, colour = ~ Geschlecht, title = "Original")
+gf_point(EKWert ~ Alter, data= cl_test, colour = ~ Geschlecht , title = "Bereinigt")
 ```
 
 # Analysen anstellen
 ```{r}
-for (col in ) {
-  cor(EKWert ~ col, data = cl_test)
-}
+core_anal <- cl_test %>% select("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe", "EKWert")
+#for (col in core_anal) {
+#  cor(EKWert ~ col, data = core_anal)
+#}
+#cor(EKWert ~ Beratung, data = core_anal)
 ```
+
+Korrelationsmatrix erstellen, um Abhängigkeiten zu identifizieren. Hier ist zu erkennen, dass der EKWert kaum Abhängigkeiten aufweist. Einzige kleine Ausnahme bildet die Güte der Produkte
+
+```{r}
+#Teil eines extrapakets aber sehr praktisch
+invisible(rquery.cormat(core_anal))
+```
+
 
