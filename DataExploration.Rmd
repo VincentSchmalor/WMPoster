@@ -17,11 +17,12 @@ test <- read.csv2("sources/Trainingsdaten.csv")
 ```
 
 # Einleitung
-Dieses Dokument wendet einige Operationen auf den Datensets an, um sie näher kennen zu lernen und zu verstehen
+Diese Fallstudie verwendet die Ergebnisse einer Umfrage bezüglich der Schenkgewohnheiuten und -Absichten zu Weihnachten. Anhand der Ergebnisse der einen Studie wird ein Modell erstellt, das die Ergebnisse einer anderen Stichprobe schätzt.
+Dazu stehen mehrere Herangehensweisen zur Auswahl.
 
-## Funktionen
-```{r}
-#Lösche alle Ausreißer, die außerhalb der Antennen eines Boxplots liegen würden
+```{r Funktionen}
+
+#Funktion zum Löschen aller Ausreißer, die nach IQR-1.5 Methode als Ausreißer gelten
 remove_outliers <- function(x, na.rm = TRUE, ...) {
   qnt <- quantile(x, probs=c(.25, .75), na.rm = na.rm, ...) # Vektor mit Quartilen 25% und 75% erstellen
   H <- 1.3 * IQR(x, na.rm = na.rm) #Antennenberechnung
@@ -30,36 +31,45 @@ remove_outliers <- function(x, na.rm = TRUE, ...) {
   y[x > (qnt[2] + H)] <- NA #Obere Ausreißer
   y
 }
-multi.fun <- function(x) {
+
+#Funktion für die Darstellung der Favstats für jede Spalte
+multi.fun <- function(x) { 
       c(min = min(x), mean = mean(x), max = max(x), sd = sd(x), q1 = quantile(x, 0.25), med = median(x), q3 = quantile(x,0.75))
 }
 ```
 
-# Data-set vorbereiten
+# Explorative Datenanalyse
 ## Rohdaten
 Kurzer Überblick über die vorhandenen Daten in ihrer Rohform
-```{r inspect}
+```{r Rohdaten}
 #inspect(test)
 kable(head(test, n= 10)) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 kable(apply(test, 2, multi.fun)) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
+## Wichtige Metriken hinzufügen
+Fügt die folgenden Metriken hinzu:
+- Anzahl der bedachten Gruppen
+```{r}
+test <- test %>% mutate(gift.count = (X9.1*2.5) + (X9.2*2) + (X9.3*2) + (X9.4*0.5) + (X9.5*1) + (X9.6*1.5) + (X9.7*0.75) + (X9.8*0.5))
+```
 
 ## Richtige Datentypen und Bezeichnungen
 Kurzer Überblick über die Daten mit richtigen Spaltenbeschriftungen, um sie interpretieren zu können
-```{r}
+```{r Datentypszuweisungen}
 cols <- c(#"X7.1","X7.2","X7.3","X7.4","X7.5","X7.6","X7.7",
-  "X9.1","X9.2","X9.3","X9.4","X9.5","X9.6","X9.7","X9.8","D2")
-test[cols] <- lapply(test[cols], factor)
-colnames(test) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale Institutionen","Alter","Geschlecht","EKWert")
+  #"X9.1","X9.2","X9.3","X9.4","X9.5","X9.6","X9.7","X9.8",
+  "D2") #Auswahl der Spalten, die als Faktor interpretiert werden sollen
+test[cols] <- lapply(test[cols], factor) #Faktorspalten setzen
+colnames(test) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","EKWert", "gift_count") #Spaltennamen setzen
 kable(head(test, n= 10)) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover")) #Dataset erneut anschauen
 ```
 
 ## Ausreißer bereinigen
 Ausreißer identifizieren und bereinigtes Dataset in "cl_test" speichern.
-```{r}
+```{r Ausreißer}
 col_EKW <- pull(test, EKWert) #Spalte extrahieren, um Ausreißer zu identifizieren
 cl_test <- test %>% mutate("cleanedEKWert" = remove_outliers(col_EKW)) #Ausreißer nullen und in neues Datenset speichern
 cl_test <- cl_test %>% filter(!is.na(cleanedEKWert)) #Datenset um Ausreißer bereinigen
@@ -68,34 +78,63 @@ kable(head(test, n= 10)) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-
-# Data-set anschauen
-## Histogramm
-```{r}
-gf_histogram(~ EKWert, data = test, binwidth = 50, center = 50, title = "Original")
-gf_histogram(~ EKWert, data = cl_test, binwidth = 50, center = 50, title = "Bereinigt")
+## Visualisierungen in Diagrammen
+### Histogramm
+```{r Histogramme}
+gf_histogram(~ EKWert, data = test, binwidth = 50, center = 50, title = "Original - EK-Wert je Alter")
+gf_histogram(~ EKWert, data = cl_test, binwidth = 50, center = 50, title = "Bereinigt - EK-Wert je Alter")
+gf_point(EKWert ~ gift_count, data = cl_test, binwidth = 50, center = 50, title = "Ek-Wert je Geschenkanzahl")
 ```
 
-## Punktwolken
-```{r}
-gf_point(EKWert ~ Alter, data= test, colour = ~ Geschlecht, title = "Original")
-gf_point(EKWert ~ Alter, data= cl_test, colour = ~ Geschlecht , title = "Bereinigt")
+### Punktwolken
+```{r Punktwolken}
+gf_point(EKWert ~ Alter, data= test, colour = ~ Geschlecht, title = "Original - EK-Wert je Alter")
+gf_point(EKWert ~ Alter, data= cl_test, colour = ~ Geschlecht , title = "Bereinigt - EK-Wert je Alter")
+gf_point(EKWert ~ gift_count, data = cl_test, colour = ~ Geschlecht, title = "Ek-Wert je Geschenkanzahl")
 ```
 
-# Analysen anstellen
-```{r}
-core_anal <- cl_test %>% select("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe", "EKWert")
-#for (col in core_anal) {
-#  cor(EKWert ~ col, data = core_anal)
-#}
-#cor(EKWert ~ Beratung, data = core_anal)
-```
-
+## Korrelationsanalysen
 Korrelationsmatrix erstellen, um Abhängigkeiten zu identifizieren. Hier ist zu erkennen, dass der EKWert kaum Abhängigkeiten aufweist. Einzige kleine Ausnahme bildet die Güte der Produkte
 
-```{r}
+```{r Korrelationsanalyse}
+core_anal <- cl_test %>% select("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe", "EKWert")
 #Teil eines extrapakets aber sehr praktisch
 invisible(rquery.cormat(core_anal))
 ```
 
+
+
+## Lineare Modelle
+```{r lineare Modelle}
+lm_ekalter <- lm(EKWert ~ Alter, data = cl_test)
+plotModel(lm_ekalter, title = "lm_ekalter")
+summary(lm_ekalter)
+lm_ekPartner <- lm(EKWert ~ Partner, data = cl_test)
+plotModel(lm_ekPartner, title = "lm_ekPartner")
+summary(lm_ekPartner)
+lm_ekEltern <- lm(EKWert ~ Eltern, data = cl_test)
+plotModel(lm_ekEltern, title = "lm_ekEltern")
+summary(lm_ekEltern)
+lm_ekVerwandte <- lm(EKWert ~ Verwandte, data = cl_test)
+plotModel(lm_ekVerwandte, title = "lm_ekVerwandte")
+summary(lm_ekVerwandte)
+lm_ekKommilitonen <- lm(EKWert ~ Kommilitonen, data = cl_test)
+plotModel(lm_ekKommilitonen, title = "lm_ekKommilitonen")
+summary(lm_ekKommilitonen)
+lm_ekKinder <- lm(EKWert ~ Kinder, data = cl_test)
+plotModel(lm_ekKinder, title = "lm_ekKinder")
+summary(lm_ekKinder)
+lm_ekFreunde <- lm(EKWert ~ Freunde, data = cl_test)
+plotModel(lm_ekFreunde, title = "lm_ekFreunde")
+summary(lm_ekFreunde)
+lm_ekArbeitskollegen <- lm(EKWert ~ Arbeitskollegen, data = cl_test)
+plotModel(lm_ekArbeitskollegen, title = "lm_ekArbeitskollegen")
+summary(lm_ekArbeitskollegen)
+lm_ekSoziale.Institutionen <- lm(EKWert ~ Soziale.Institutionen, data = cl_test)
+plotModel(lm_ekSoziale.Institutionen, title = "lm_ekSoziale.Institutionen")
+summary(lm_ekSoziale.Institutionen)
+lm_ekgift_count <- lm(EKWert ~ gift_count, data = cl_test)
+plotModel(lm_ekgift_count, title = "lm_ekgift_count")
+summary(lm_ekgift_count)
+```
 
