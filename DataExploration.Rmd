@@ -52,17 +52,21 @@ kable(apply(test, 2, multi.fun)) %>%
 Fügt die folgenden Metriken hinzu:
 - Anzahl der bedachten Gruppen
 ```{r}
-test <- test %>% mutate(gift.count = (X9.1*2.5) + (X9.2*2) + (X9.3*2) + (X9.4*0.5) + (X9.5*1) + (X9.6*1.5) + (X9.7*0.75) + (X9.8*0.5))
+test <- test %>% mutate(gift.count = (X9.1*1) + (X9.2*1) +(X9.3*1) + (X9.4*1) + (X9.5*1) + (X9.6*1) + (X9.7*1) + (X9.8*1))
+```
+
+```{r}
+#test <- test %>% mutate(gift.count = (X9.1*2.5) + (X9.2*2) + (X9.3*2) + (X9.4*0.5) + (X9.5*1) + (X9.6*1.5) + (X9.7*0.75) + (X9.8*0.5))
 ```
 
 ## Richtige Datentypen und Bezeichnungen
 Kurzer Überblick über die Daten mit richtigen Spaltenbeschriftungen, um sie interpretieren zu können
 ```{r Datentypszuweisungen}
-cols <- c(#"X7.1","X7.2","X7.3","X7.4","X7.5","X7.6","X7.7",
+# cols <- c(#"X7.1","X7.2","X7.3","X7.4","X7.5","X7.6","X7.7",
   #"X9.1","X9.2","X9.3","X9.4","X9.5","X9.6","X9.7","X9.8",
-  "D2") #Auswahl der Spalten, die als Faktor interpretiert werden sollen
-test[cols] <- lapply(test[cols], factor) #Faktorspalten setzen
-colnames(test) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","EKWert", "gift_count") #Spaltennamen setzen
+#  "D2") #Auswahl der Spalten, die als Faktor interpretiert werden sollen
+# test[cols] <- lapply(test[cols], factor) #Faktorspalten setzen
+colnames(test) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","EKWert", "gift_count") #Spaltennamen setzen
 kable(head(test, n= 10)) %>%
   kable_styling(bootstrap_options = c("striped", "hover")) #Dataset erneut anschauen
 ```
@@ -97,8 +101,9 @@ gf_point(EKWert ~ gift_count, data = cl_test, colour = ~ Geschlecht, title = "Ek
 Korrelationsmatrix erstellen, um Abhängigkeiten zu identifizieren. Hier ist zu erkennen, dass der EKWert kaum Abhängigkeiten aufweist. Einzige kleine Ausnahme bildet die Güte der Produkte
 
 ```{r Korrelationsanalyse}
-core_anal <- cl_test %>% select("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","Guete der Produkte und Marke","Naehe", "EKWert")
+core_anal <- cl_test #%>% select("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe", "EKWert")
 #Teil eines extrapakets aber sehr praktisch
+
 invisible(rquery.cormat(core_anal))
 ```
 
@@ -136,5 +141,50 @@ summary(lm_ekSoziale.Institutionen)
 lm_ekgift_count <- lm(EKWert ~ gift_count, data = cl_test)
 plotModel(lm_ekgift_count, title = "lm_ekgift_count")
 summary(lm_ekgift_count)
+
+lm_ekBeratung <- lm(EKWert ~ Beratung, data = cl_test)
+plotModel(lm_ekBeratung, title = "lm_ekBeratung")
+summary(lm_ekBeratung)
+lm_ekAngebote <- lm(EKWert ~ Angebote, data = cl_test)
+plotModel(lm_ekAngebote, title = "lm_ekAngebote")
+summary(lm_ekAngebote)
+lm_ekBequemlichkeit <- lm(EKWert ~ Bequemlichkeit, data = cl_test)
+plotModel(lm_ekBequemlichkeit, title = "lm_ekBequemlichkeit")
+summary(lm_ekBequemlichkeit)
+lm_ekEinkaufsatmosphaere <- lm(EKWert ~ Einkaufsatmosphaere, data = cl_test)
+plotModel(lm_ekEinkaufsatmosphaere, title = "lm_ekEinkaufsatmosphaere")
+summary(lm_ekEinkaufsatmosphaere)
+lm_ekMarken <- lm(EKWert ~ Marken, data = cl_test)
+plotModel(lm_ekMarken, title = "lm_ekMarken")
+summary(lm_ekMarken)
+lm_ekGPM <- lm(EKWert ~ GPM, data = cl_test)
+plotModel(lm_ekGPM, title = "lm_ekGPM")
+summary(lm_ekGPM)
+lm_ekNaehe <- lm(EKWert ~ Naehe, data = cl_test)
+plotModel(lm_ekNaehe, title = "lm_ekNaehe")
+summary(lm_ekNaehe)
+lm_ekGeschlecht <- lm(EKWert ~ Geschlecht, data = cl_test)
+plotModel(lm_ekGeschlecht, title = "lm_ekGeschlecht")
+summary(lm_ekGeschlecht)
+
+glm.alle.dreierSterne <- glm(EKWert ~ Alter + Partner + Kinder + gift_count + GPM, data = cl_test)
+plotModel(glm.alle.dreierSterne, title = "glm.alle.dreierSterne")
+summary(glm.alle.dreierSterne)
+
+glm.alle.groesser.gleich.zwei <- glm(EKWert ~ Alter + Partner + Kinder + gift_count + GPM + Soziale.Institutionen, data = cl_test)
+plotModel(glm.alle.groesser.gleich.zwei, title = "glm.alle.groesser.gleich.zwei")
+summary(glm.alle.groesser.gleich.zwei)
+
+```
+
+# Prediction
+Anhand des erstellten Modells schätzen wir die Daten für das Anwendungs-Data-Set
+```{r}
+anwendung <- read.csv2("sources/Anwendungsdaten.csv")
+anwendung <- anwendung %>% mutate(gift.count = (X9.1*1) + (X9.2*1) +(X9.3*1) + (X9.4*1) + (X9.5*1) + (X9.6*1) + (X9.7*1) + (X9.8*1))
+colnames(anwendung) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","gift_count") #Spaltennamen setzen
+ergglm <- predict.glm(glm.alle.dreierSterne, newdata = anwendung, interval="prediction")
+favstats(ergglm)
+plot(ergglm)
 ```
 
