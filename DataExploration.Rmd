@@ -186,5 +186,8 @@ colnames(anwendung) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosp
 ergglm <- predict.glm(glm.alle.dreierSterne, newdata = anwendung, interval="prediction")
 favstats(ergglm)
 plot(ergglm)
+anwendung <- anwendung %>% mutate(Budget = ergglm)
+kable(head(anwendung, n= 50)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
