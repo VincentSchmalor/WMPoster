@@ -1,7 +1,7 @@
 ---
-title: "Data Exploration"
-author: "Vincent Schmalor"
-date: "6 12 2019"
+title: "Modellierung des Weihnachtsgeschenkbnudgets"
+author: "Vincent Schmalor, Hendrick Kaiser, Lukas Küppers"
+date: "3 01 2020"
 output: html_document
 #classoption: landscape
 ---
@@ -13,15 +13,6 @@ library(corrplot)
 library(kableExtra)
 library(reshape2)
 source("http://www.sthda.com/upload/rquery_cormat.r")
-test <- read.csv2("sources/Trainingsdaten.csv")
-```
-
-# Einleitung
-Diese Fallstudie verwendet die Ergebnisse einer Umfrage bezüglich der Schenkgewohnheiuten und -Absichten zu Weihnachten. Anhand der Ergebnisse der einen Studie wird ein Modell erstellt, das die Ergebnisse einer anderen Stichprobe schätzt.
-Dazu stehen mehrere Herangehensweisen zur Auswahl.
-
-```{r Funktionen}
-
 #Funktion zum Löschen aller Ausreißer, die nach IQR-1.5 Methode als Ausreißer gelten
 remove_outliers <- function(x, na.rm = TRUE, ...) {
   qnt <- quantile(x, probs=c(.25, .75), na.rm = na.rm, ...) # Vektor mit Quartilen 25% und 75% erstellen
@@ -36,158 +27,167 @@ remove_outliers <- function(x, na.rm = TRUE, ...) {
 multi.fun <- function(x) { 
       c(min = min(x), mean = mean(x), max = max(x), sd = sd(x), q1 = quantile(x, 0.25), med = median(x), q3 = quantile(x,0.75))
 }
+raw.training <- read.csv2("sources/Trainingsdaten.csv")
 ```
 
+# Einleitung
+Dieses Dokument stellt sowohl die Durchführung, als auch die Protokollierung des Vorhersagewettbewerbs dar. Die Aufgabenstellung besteht darin, ein Modell aus einem Grunddatensatz zu entwickeln und dieses Modell auf einen Anwendungsdatensatz anzuwenden. Dabei wird aus mehreren Einflussvariablen eine abhängige Variable geschätzt. Der konkrete Anwendungsfall ist ein Auszug aus einem Face-to-Face Interview über das Konsum- und Schenkverhalten zu Weihnachten. Das Grunddatenset beinhaltet 400 Beobachtungen mit 17 erklärenden Variablen und die abhängige Variable des geschätzten Budgets, die es im Anwendungsdatenset zu modellieren gilt.
+In dem folgenden Kapitel wird diese Aufgabe bearbeitet, indem zunächst ein Überblick über die Daten in einer explorativen Datenanalyse gegeben wird. Anhand verschiedener Analysen und der Untersuchung der semantischen Zusammenhänge wird dann eine Vorgehensweise erarbeitet und beschrieben. 
+Das Ergebnis ist eine csv-Datei, die das Anwendungsdatenset mit der modellierten, abhängigen Variable beinhaltet. So wird eine Prognose über diese Variable für jede Beobachtung gegeben, für die das tatsächliche Budget nicht vorliegt. Eine Zusammenfassung der Ergebnisse findet sich auch auf dem Plakat der genannten Autoren.
 # Explorative Datenanalyse
-## Rohdaten
-Kurzer Überblick über die vorhandenen Daten in ihrer Rohform
-```{r Rohdaten}
-#inspect(test)
-kable(head(test, n= 10)) %>%
+## Rohdatenanalyse und -strukturierung
+Kurzer Überblick über die vorhandenen Daten in ihrer Rohform.
+```{r Rohdatenanalyse}
+#Visualisierung der Rohdaten in schönen Tabellen
+kable(head(raw.training, n= 10)) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
-kable(apply(test, 2, multi.fun)) %>%
+kable(apply(raw.training, 2, multi.fun)) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
-## Wichtige Metriken hinzufügen
-Fügt die folgenden Metriken hinzu:
-- Anzahl der bedachten Gruppen
-```{r}
-test <- test %>% mutate(gift.count = (X9.1*1) + (X9.2*1) +(X9.3*1) + (X9.4*1) + (X9.5*1) + (X9.6*1) + (X9.7*1) + (X9.8*1))
-```
-
-```{r}
-#test <- test %>% mutate(gift.count = (X9.1*2.5) + (X9.2*2) + (X9.3*2) + (X9.4*0.5) + (X9.5*1) + (X9.6*1.5) + (X9.7*0.75) + (X9.8*0.5))
-```
-
-## Richtige Datentypen und Bezeichnungen
 Kurzer Überblick über die Daten mit richtigen Spaltenbeschriftungen, um sie interpretieren zu können
-```{r Datentypszuweisungen}
-# cols <- c(#"X7.1","X7.2","X7.3","X7.4","X7.5","X7.6","X7.7",
-  #"X9.1","X9.2","X9.3","X9.4","X9.5","X9.6","X9.7","X9.8",
-#  "D2") #Auswahl der Spalten, die als Faktor interpretiert werden sollen
-# test[cols] <- lapply(test[cols], factor) #Faktorspalten setzen
-colnames(test) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","EKWert", "gift_count") #Spaltennamen setzen
-kable(head(test, n= 10)) %>%
+```{r Rohdatenstrukturierung}
+#Auswahl der Spalten, die als Faktor interpretiert werden sollen. Nicht ausgeführt, um Regressionsanalysen durchführen zu können
+# cols <- c("X7.1","X7.2","X7.3","X7.4","X7.5","X7.6","X7.7","X9.1","X9.2","X9.3","X9.4","X9.5","X9.6","X9.7","X9.8","D2") 
+#raw.training[cols] <- lapply(raw.training[cols], factor) #Faktorspalten setzen
+#Spalten mit sprechenden Überschriften versehen
+colnames(raw.training) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","Budget") 
+kable(head(raw.training, n= 10)) %>%
   kable_styling(bootstrap_options = c("striped", "hover")) #Dataset erneut anschauen
 ```
-
-## Ausreißer bereinigen
-Ausreißer identifizieren und bereinigtes Dataset in "cl_test" speichern.
+## Erweiterung um abgeleitete Metriken
+Fügt die folgenden Metriken hinzu:
+- Anzahl der bedachten Gruppen
+```{r ungewichtete Spalte gift.count hinzufügen}
+#Anzahl der bedachten Personen als zusätzliche Spalte hinzufügen
+raw.training <- raw.training %>% mutate(gift.count = (Partner*1) + (Eltern*1) +(Verwandte*1) + (Kommilitonen*1) + (Kinder*1) + (Freunde*1) + (Arbeitskollegen*1) + (Soziale.Institutionen*1))
+```
+```{r gewichtete Spalte gift.count hinzufügen}
+#Test mit gewichteten Gruppen war nicht erfolgreich
+#raw.training <- raw.training %>% mutate(gift.count = (X9.1*2.5) + (X9.2*2) + (X9.3*2) + (X9.4*0.5) + (X9.5*1) + (X9.6*1.5) + (X9.7*0.75) + (X9.8*0.5))
+```
+## Bereinigung der Datenmenge von Ausreißern
+Ausreißer identifizieren und bereinigtes Dataset in "training" speichern.
 ```{r Ausreißer}
-col_EKW <- pull(test, EKWert) #Spalte extrahieren, um Ausreißer zu identifizieren
-cl_test <- test %>% mutate("cleanedEKWert" = remove_outliers(col_EKW)) #Ausreißer nullen und in neues Datenset speichern
-cl_test <- cl_test %>% filter(!is.na(cleanedEKWert)) #Datenset um Ausreißer bereinigen
-cl_test <- subset(cl_test, select = -(cleanedEKWert))
-kable(head(test, n= 10)) %>%
+col.Budget <- pull(raw.training, Budget) #Spalte extrahieren, um Ausreißer zu identifizieren
+training <- raw.training %>% mutate("cleaned.Budget" = remove_outliers(col.Budget)) #Ausreißer nullen und in neues Datenset speichern
+training <- training %>% filter(!is.na(cleaned.Budget)) #Datenset um Ausreißer bereinigen
+training <- subset(training, select = -(cleaned.Budget))
+kable(head(training, n= 10)) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
-
-## Visualisierungen in Diagrammen
-### Histogramm
+## Visualisierungen der Datenmenge
+### Histogramme
 ```{r Histogramme}
-gf_histogram(~ EKWert, data = test, binwidth = 50, center = 50, title = "Original - EK-Wert je Alter")
-gf_histogram(~ EKWert, data = cl_test, binwidth = 50, center = 50, title = "Bereinigt - EK-Wert je Alter")
-gf_point(EKWert ~ gift_count, data = cl_test, binwidth = 50, center = 50, title = "Ek-Wert je Geschenkanzahl")
+gf_histogram(~ Budget, data = raw.training, binwidth = 50, center = 50, title = "Original - Verteilung der Beobachtungen nach Alter")
+gf_histogram(~ Budget, data = training, binwidth = 50, center = 50, title = "Bereinigt - Verteilung der Beobachtungen nach Alter")
+gf_histogram(~ gift.count, data = raw.training, binwidth = 1, center = 1, title = "Original - Verteilung der Beobachtungen nach Geschenkanzahl")
+gf_histogram(~ gift.count, data = training, binwidth = 1, center = 1, title = "Bereinigt - Verteilung der Beobachtungen nach Geschenkanzahl")
 ```
-
 ### Punktwolken
 ```{r Punktwolken}
-gf_point(EKWert ~ Alter, data= test, colour = ~ Geschlecht, title = "Original - EK-Wert je Alter")
-gf_point(EKWert ~ Alter, data= cl_test, colour = ~ Geschlecht , title = "Bereinigt - EK-Wert je Alter")
-gf_point(EKWert ~ gift_count, data = cl_test, colour = ~ Geschlecht, title = "Ek-Wert je Geschenkanzahl")
+gf_point(Budget ~ Alter, data= training, colour = ~ Geschlecht, title = "Original - Budget je Alter")
+gf_point(Budget ~ Alter, data= training, colour = ~ Geschlecht , title = "Bereinigt - Budget je Alter")
+gf_point(Budget ~ gift.count, data = raw.training, colour = ~ Geschlecht, title = "Original - Budget je Geschenkanzahl")
+gf_point(Budget ~ gift.count, data = training, colour = ~ Geschlecht, title = "Bereinigt - Budget je Geschenkanzahl")
 ```
-
-## Korrelationsanalysen
-Korrelationsmatrix erstellen, um Abhängigkeiten zu identifizieren. Hier ist zu erkennen, dass der EKWert kaum Abhängigkeiten aufweist. Einzige kleine Ausnahme bildet die Güte der Produkte
-
-```{r Korrelationsanalyse}
-core_anal <- cl_test #%>% select("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe", "EKWert")
-#Teil eines extrapakets aber sehr praktisch
-
-invisible(rquery.cormat(core_anal))
-```
-
-
-
 ## Lineare Modelle
-```{r lineare Modelle}
-lm_ekalter <- lm(EKWert ~ Alter, data = cl_test)
-plotModel(lm_ekalter, title = "lm_ekalter")
-summary(lm_ekalter)
-lm_ekPartner <- lm(EKWert ~ Partner, data = cl_test)
-plotModel(lm_ekPartner, title = "lm_ekPartner")
-summary(lm_ekPartner)
-lm_ekEltern <- lm(EKWert ~ Eltern, data = cl_test)
-plotModel(lm_ekEltern, title = "lm_ekEltern")
-summary(lm_ekEltern)
-lm_ekVerwandte <- lm(EKWert ~ Verwandte, data = cl_test)
-plotModel(lm_ekVerwandte, title = "lm_ekVerwandte")
-summary(lm_ekVerwandte)
-lm_ekKommilitonen <- lm(EKWert ~ Kommilitonen, data = cl_test)
-plotModel(lm_ekKommilitonen, title = "lm_ekKommilitonen")
-summary(lm_ekKommilitonen)
-lm_ekKinder <- lm(EKWert ~ Kinder, data = cl_test)
-plotModel(lm_ekKinder, title = "lm_ekKinder")
-summary(lm_ekKinder)
-lm_ekFreunde <- lm(EKWert ~ Freunde, data = cl_test)
-plotModel(lm_ekFreunde, title = "lm_ekFreunde")
-summary(lm_ekFreunde)
-lm_ekArbeitskollegen <- lm(EKWert ~ Arbeitskollegen, data = cl_test)
-plotModel(lm_ekArbeitskollegen, title = "lm_ekArbeitskollegen")
-summary(lm_ekArbeitskollegen)
-lm_ekSoziale.Institutionen <- lm(EKWert ~ Soziale.Institutionen, data = cl_test)
-plotModel(lm_ekSoziale.Institutionen, title = "lm_ekSoziale.Institutionen")
-summary(lm_ekSoziale.Institutionen)
-lm_ekgift_count <- lm(EKWert ~ gift_count, data = cl_test)
-plotModel(lm_ekgift_count, title = "lm_ekgift_count")
-summary(lm_ekgift_count)
-
-lm_ekBeratung <- lm(EKWert ~ Beratung, data = cl_test)
-plotModel(lm_ekBeratung, title = "lm_ekBeratung")
-summary(lm_ekBeratung)
-lm_ekAngebote <- lm(EKWert ~ Angebote, data = cl_test)
-plotModel(lm_ekAngebote, title = "lm_ekAngebote")
-summary(lm_ekAngebote)
-lm_ekBequemlichkeit <- lm(EKWert ~ Bequemlichkeit, data = cl_test)
-plotModel(lm_ekBequemlichkeit, title = "lm_ekBequemlichkeit")
-summary(lm_ekBequemlichkeit)
-lm_ekEinkaufsatmosphaere <- lm(EKWert ~ Einkaufsatmosphaere, data = cl_test)
-plotModel(lm_ekEinkaufsatmosphaere, title = "lm_ekEinkaufsatmosphaere")
-summary(lm_ekEinkaufsatmosphaere)
-lm_ekMarken <- lm(EKWert ~ Marken, data = cl_test)
-plotModel(lm_ekMarken, title = "lm_ekMarken")
-summary(lm_ekMarken)
-lm_ekGPM <- lm(EKWert ~ GPM, data = cl_test)
-plotModel(lm_ekGPM, title = "lm_ekGPM")
-summary(lm_ekGPM)
-lm_ekNaehe <- lm(EKWert ~ Naehe, data = cl_test)
-plotModel(lm_ekNaehe, title = "lm_ekNaehe")
-summary(lm_ekNaehe)
-lm_ekGeschlecht <- lm(EKWert ~ Geschlecht, data = cl_test)
-plotModel(lm_ekGeschlecht, title = "lm_ekGeschlecht")
-summary(lm_ekGeschlecht)
-
-glm.alle.dreierSterne <- glm(EKWert ~ Alter + Partner + Kinder + gift_count + GPM, data = cl_test)
-plotModel(glm.alle.dreierSterne, title = "glm.alle.dreierSterne")
-summary(glm.alle.dreierSterne)
-
-glm.alle.groesser.gleich.zwei <- glm(EKWert ~ Alter + Partner + Kinder + gift_count + GPM + Soziale.Institutionen, data = cl_test)
-plotModel(glm.alle.groesser.gleich.zwei, title = "glm.alle.groesser.gleich.zwei")
-summary(glm.alle.groesser.gleich.zwei)
-
+### Übersicht
+Korrelationsmatrix erstellen, um Abhängigkeiten zu identifizieren. Hier ist zu erkennen, dass das Budget kaum Abhängigkeiten aufweist.
+```{r Korrelationsanalyse}
+#Teil eines extrapakets aber sehr praktisch
+invisible(rquery.cormat(training))
 ```
-
-# Prediction
+### Detailanalyse
+Lineare Modelle erstellen, um statistisch relevante Einflussvariablen zu identifizeren.
+```{r lineare Modelle}
+#Demografische Variablen
+lm.budget.alter <- lm(Budget ~ Alter, data = training)
+plotModel(lm.budget.alter, title = "Weihnachtsbudget in Relation zur Variable Alter")
+summary(lm.budget.alter)
+lm.budget.Geschlecht <- lm(Budget ~ Geschlecht, data = training)
+plotModel(lm.budget.Geschlecht, title = "Weihnachtsbudget in Relation zur Variable Geschlecht")
+summary(lm.budget.Geschlecht)
+#Wer wird beschenkt?
+lm.budget.Partner <- lm(Budget ~ Partner, data = training)
+plotModel(lm.budget.Partner, title = "Weihnachtsbudget in Relation zur Variable Partner")
+summary(lm.budget.Partner)
+lm.budget.Eltern <- lm(Budget ~ Eltern, data = training)
+plotModel(lm.budget.Eltern, title = "Weihnachtsbudget in Relation zur Variable Eltern")
+summary(lm.budget.Eltern)
+lm.budget.Verwandte <- lm(Budget ~ Verwandte, data = training)
+plotModel(lm.budget.Verwandte, title = "Weihnachtsbudget in Relation zur Variable Verwandte")
+summary(lm.budget.Verwandte)
+lm.budget.Kommilitonen <- lm(Budget ~ Kommilitonen, data = training)
+plotModel(lm.budget.Kommilitonen, title = "Weihnachtsbudget in Relation zur Variable Kommilitonen")
+summary(lm.budget.Kommilitonen)
+lm.budget.Kinder <- lm(Budget ~ Kinder, data = training)
+plotModel(lm.budget.Kinder, title = "Weihnachtsbudget in Relation zur Variable Kinder")
+summary(lm.budget.Kinder)
+lm.budget.Freunde <- lm(Budget ~ Freunde, data = training)
+plotModel(lm.budget.Freunde, title = "Weihnachtsbudget in Relation zur Variable Freunde")
+summary(lm.budget.Freunde)
+lm.budget.Arbeitskollegen <- lm(Budget ~ Arbeitskollegen, data = training)
+plotModel(lm.budget.Arbeitskollegen, title = "Weihnachtsbudget in Relation zur Variable Arbeitskollegen")
+summary(lm.budget.Arbeitskollegen)
+lm.budget.Soziale.Institutionen <- lm(Budget ~ Soziale.Institutionen, data = training)
+plotModel(lm.budget.Soziale.Institutionen, title = "Weihnachtsbudget in Relation zur Variable Soziale.Institutionen")
+summary(lm.budget.Soziale.Institutionen)
+lm.budget.gift.count <- lm(Budget ~ gift.count, data = training)
+plotModel(lm.budget.gift.count, title = "Weihnachtsbudget in Relation zur Variable gift.count")
+summary(lm.budget.gift.count)
+#Was ist wichtig bei der Auswahl?
+lm.budget.Beratung <- lm(Budget ~ Beratung, data = training)
+plotModel(lm.budget.Beratung, title = "Weihnachtsbudget in Relation zur Variable Beratung")
+summary(lm.budget.Beratung)
+lm.budget.Angebote <- lm(Budget ~ Angebote, data = training)
+plotModel(lm.budget.Angebote, title = "Weihnachtsbudget in Relation zur Variable Angebote")
+summary(lm.budget.Angebote)
+lm.budget.Bequemlichkeit <- lm(Budget ~ Bequemlichkeit, data = training)
+plotModel(lm.budget.Bequemlichkeit, title = "Weihnachtsbudget in Relation zur Variable Bequemlichkeit")
+summary(lm.budget.Bequemlichkeit)
+lm.budget.Einkaufsatmosphaere <- lm(Budget ~ Einkaufsatmosphaere, data = training)
+plotModel(lm.budget.Einkaufsatmosphaere, title = "Weihnachtsbudget in Relation zur Variable Einkaufsatmosphaere")
+summary(lm.budget.Einkaufsatmosphaere)
+lm.budget.Marken <- lm(Budget ~ Marken, data = training)
+plotModel(lm.budget.Marken, title = "Weihnachtsbudget in Relation zur Variable Marken")
+summary(lm.budget.Marken)
+lm.budget.GPM <- lm(Budget ~ GPM, data = training)
+plotModel(lm.budget.GPM, title = "Weihnachtsbudget in Relation zur Variable GPM")
+summary(lm.budget.GPM)
+lm.budget.Naehe <- lm(Budget ~ Naehe, data = training)
+plotModel(lm.budget.Naehe, title = "Weihnachtsbudget in Relation zur Variable Naehe")
+summary(lm.budget.Naehe)
+```
+# Methodik
+Wir haben uns die Daten angeguckt und sind zu dem Schluss gekommen, dass die Verwendung eines generalisierten linearen Modells die beste Verfahrensweise ist, alle Einflussfaktoren in ein Modell zu verpacken.
+# Modellierung
+Das Modell wird mit den in R vorgegebenen Funktionen erstellt
+```{r GLM erstellen}
+#General Linear Model mit allen Variablen, die laut voriger Untersuchung einen signifikanten Einfluss auf das Budget haben.
+glm.drei.Sterne <- glm(Budget ~ Alter + Partner + Kinder + gift.count + GPM, data = training)
+plotModel(glm.drei.Sterne, title = "Weihnachtsbudget in Relation zu allen Variablen mit starker statistischer Relevanz in der Relation")
+summary(glm.drei.Sterne)
+#General Linear Model mit allen Variablen, die laut voriger Untersuchung einen einigermaßen signifikanten Einfluss auf das Budget haben.
+glm.zwei.Sterne <- glm(Budget ~ Alter + Partner + Kinder + gift.count + GPM + Soziale.Institutionen, data = training)
+plotModel(glm.zwei.Sterne, title = "Weihnachtsbudget in Relation zu allen Variablen mit mindestens mittlerer statistischer Relevanz in der Relation")
+summary(glm.zwei.Sterne)
+```
 Anhand des erstellten Modells schätzen wir die Daten für das Anwendungs-Data-Set
-```{r}
+```{r Modell anwenden}
+#Zieldatenset laden und analog zum Trainingsdatenset transformieren
 anwendung <- read.csv2("sources/Anwendungsdaten.csv")
 anwendung <- anwendung %>% mutate(gift.count = (X9.1*1) + (X9.2*1) +(X9.3*1) + (X9.4*1) + (X9.5*1) + (X9.6*1) + (X9.7*1) + (X9.8*1))
-colnames(anwendung) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","gift_count") #Spaltennamen setzen
-ergglm <- predict.glm(glm.alle.dreierSterne, newdata = anwendung, interval="prediction")
+colnames(anwendung) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","gift.count") #Spaltennamen setzen
+ergglm <- predict.glm(glm.drei.Sterne, newdata = anwendung, interval="prediction")
+```
+#Ergebnis
+Die folgenden Grafiken zeigen die Eigenschaften des Anwendungsdatensets.
+```{r}
 favstats(ergglm)
 plot(ergglm)
 anwendung <- anwendung %>% mutate(Budget = ergglm)
-kable(head(anwendung, n= 50)) %>%
+kable(head(anwendung, n= 10)) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
-
+# Fazit
+Best analysis ever! 10 outta 10. Would analyse again
