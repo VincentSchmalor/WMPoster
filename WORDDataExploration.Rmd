@@ -2,8 +2,9 @@
 title: "Modellierung des Weihnachtsgeschenkbudgets"
 author: "Vincent Schmalor, Hendrick Kaiser, Lukas Küppers"
 date: "3.1.2020"
-output: html_document
+output: word_document
 #classoption: landscape
+#always_allow_html: true
 ---
 
 ```{r setup, include=FALSE}
@@ -41,10 +42,8 @@ Das Ergebnis ist eine csv-Datei, die das Anwendungsdatenset mit der modellierten
 Kurzer Überblick über die vorhandenen Daten in ihrer Rohform.
 ```{r Rohdatenanalyse}
 #Visualisierung der Rohdaten in schönen Tabellen
-kable(head(raw.training, n= 10)) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
-kable(apply(raw.training, 2, multi.fun)) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+head(raw.training, n= 10)
+apply(raw.training, 2, multi.fun)
 ```
 Kurzer Überblick über die Daten mit richtigen Spaltenbeschriftungen, um sie interpretieren zu können
 ```{r Rohdatenstrukturierung}
@@ -53,10 +52,8 @@ Kurzer Überblick über die Daten mit richtigen Spaltenbeschriftungen, um sie in
 #raw.training[cols] <- lapply(raw.training[cols], factor) #Faktorspalten setzen
 #Spalten mit sprechenden Überschriften versehen
 colnames(raw.training) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","Budget") 
-kable(head(raw.training, n= 10)) %>%
-  kable_styling(bootstrap_options = c("striped", "hover")) #Dataset erneut anschauen
-kable(apply(raw.training, 2, multi.fun)) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+head(raw.training, n= 10) #Dataset erneut anschauen
+apply(raw.training, 2, multi.fun)
 ```
 
 ## Erweiterung um abgeleitete Metriken
@@ -78,8 +75,7 @@ col.Budget <- pull(raw.training, Budget) #Spalte extrahieren, um Ausreißer zu i
 training <- raw.training %>% mutate("cleaned.Budget" = remove_outliers(col.Budget)) #Ausreißer nullen und in neues Datenset speichern
 training <- training %>% filter(!is.na(cleaned.Budget)) #Datenset um Ausreißer bereinigen
 training <- subset(training, select = -(cleaned.Budget))
-kable(head(training, n= 10)) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+head(training, n= 10)
 ```
 
 ## Visualisierungen der Datenmenge
@@ -202,8 +198,7 @@ ergglm <- predict.glm(glm.drei.Sterne, newdata = raw.anwendung, interval="predic
 favstats(ergglm)
 plot(ergglm)
 anwendung <- raw.anwendung %>% mutate(Budget = ergglm)
-kable(head(anwendung, n= 10)) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+head(anwendung, n= 10)
 ```
 
 ## Histogramme
