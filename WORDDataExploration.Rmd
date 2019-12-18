@@ -7,8 +7,8 @@ output: word_document
 #always_allow_html: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
 library(mosaic)
 library(corrplot)
 library(kableExtra)
@@ -189,6 +189,8 @@ raw.anwendung <- read.csv2("sources/Anwendungsdaten.csv")
 raw.anwendung <- raw.anwendung %>% mutate(gift.count = (X9.1*1) + (X9.2*1) +(X9.3*1) + (X9.4*1) + (X9.5*1) + (X9.6*1) + (X9.7*1) + (X9.8*1))
 colnames(raw.anwendung) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","gift.count") #Spaltennamen setzen
 ergglm <- predict.glm(glm.drei.Sterne, newdata = raw.anwendung, interval="prediction")
+anwendung <- raw.anwendung %>% mutate(Budget = ergglm)
+write.csv2(anwendung, "Prognose_Vincent_Schmalor_Hendrick_Kaiser_Lukas_Kueppers.csv")
 ```
 
 # Ergebnis
@@ -197,7 +199,6 @@ ergglm <- predict.glm(glm.drei.Sterne, newdata = raw.anwendung, interval="predic
 ```{r Übersicht ergglm}
 favstats(ergglm)
 plot(ergglm)
-anwendung <- raw.anwendung %>% mutate(Budget = ergglm)
 head(anwendung, n= 10)
 ```
 
