@@ -66,6 +66,12 @@ Fügt die folgenden Metriken hinzu:
 #Anzahl der bedachten Personen als zusätzliche Spalte hinzufügen
 raw.training <- raw.training %>% mutate(gift.count = (Partner*1) + (Eltern*1) +(Verwandte*1) + (Kommilitonen*1) + (Kinder*1) + (Freunde*1) + (Arbeitskollegen*1) + (Soziale.Institutionen*1))
 ```
+
+```{r Spalte wertschaetzung hinzufügen}
+#Anzahl der bedachten Personen als zusätzliche Spalte hinzufügen
+raw.training <- raw.training %>% mutate(wertschaetzung = Beratung + Bequemlichkeit + Einkaufsatmosphaere + Marken)
+```
+
 ```{r gewichtete Spalte gift.count hinzufügen}
 #Test mit gewichteten Gruppen war nicht erfolgreich
 #raw.training <- raw.training %>% mutate(gift.count = (X9.1*2.5) + (X9.2*2) + (X9.3*2) + (X9.4*0.5) + (X9.5*1) + (X9.6*1.5) + (X9.7*0.75) + (X9.8*0.5))
@@ -169,6 +175,10 @@ summary(lm.budget.GPM)
 lm.budget.Naehe <- lm(Budget ~ Naehe, data = training)
 plotModel(lm.budget.Naehe, title = "Weihnachtsbudget in Relation zur Variable Naehe")
 summary(lm.budget.Naehe)
+
+lm.budget.wertschaetzung <- lm(Budget ~ wertschaetzung, data = training)
+plotModel(lm.budget.wertschaetzung, title = "Weihnachtsbudget in Relation zur Variable Wertschätzung")
+summary(lm.budget.wertschaetzung)
 ```
 
 # Methodik
@@ -178,7 +188,7 @@ Wir haben uns die Daten angeguckt und sind zu dem Schluss gekommen, dass die Ver
 Das Modell wird mit den in R vorgegebenen Funktionen erstellt
 ```{r GLM erstellen}
 #General Linear Model mit allen Variablen, die laut voriger Untersuchung einen signifikanten Einfluss auf das Budget haben.
-glm.drei.Sterne <- glm(Budget ~ Alter + Partner + Kinder + gift.count + GPM, data = training)
+glm.drei.Sterne <- glm(Budget ~ Alter + gift.count + wertschaetzung + GPM, data = training)
 plotModel(glm.drei.Sterne, title = "Weihnachtsbudget in Relation zu allen Variablen mit starker statistischer Relevanz in der Relation")
 summary(glm.drei.Sterne)
 #General Linear Model mit allen Variablen, die laut voriger Untersuchung einen einigermaßen signifikanten Einfluss auf das Budget haben.
@@ -191,7 +201,9 @@ Anhand des erstellten Modells schätzen wir die Daten für das Anwendungs-Data-S
 #Zieldatenset laden und analog zum Trainingsdatenset transformieren
 raw.anwendung <- read.csv2("sources/Anwendungsdaten.csv")
 raw.anwendung <- raw.anwendung %>% mutate(gift.count = (X9.1*1) + (X9.2*1) +(X9.3*1) + (X9.4*1) + (X9.5*1) + (X9.6*1) + (X9.7*1) + (X9.8*1))
-colnames(raw.anwendung) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","gift.count") #Spaltennamen setzen
+raw.anwendung <- raw.anwendung %>% mutate(wertschaetzung = X7.1 + X7.3 + X7.4 + X7.5)
+
+colnames(raw.anwendung) <- c("Beratung", "Angebote","Bequemlichkeit","Einkaufsatmosphaere","Marken","GPM","Naehe","Partner","Eltern","Verwandte","Kommilitonen","Kinder","Freunde","Arbeitskollegen","Soziale.Institutionen","Alter","Geschlecht","gift.count", "wertschaetzung") #Spaltennamen setzen
 ergglm <- predict.glm(glm.drei.Sterne, newdata = raw.anwendung, interval="prediction")
 anwendung <- raw.anwendung %>% mutate(Budget = ergglm)
 write.csv2(anwendung, "Prognose_Vincent_Schmalor_Hendrick_Kaiser_Lukas_Kueppers.csv")
@@ -207,6 +219,7 @@ kable(head(anwendung, n= 10)) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
+<<<<<<< Updated upstream
 ## Histogramme
 ```{r Histogramme ergglm}
 gf_histogram(~ Budget, data = anwendung, binwidth = 50, center = 50, title = "Schätzung - Verteilung der Beobachtungen nach Alter")
@@ -220,3 +233,11 @@ gf_point(Budget ~ gift.count, data = anwendung, colour = ~ Geschlecht, title = "
 
 # Fazit
 Best analysis ever! 10 outta 10. Would analyse again
+=======
+#Test
+```{r}
+gf_point(Budget ~ Alter, data = anwendung, colour = ~ gift.count, title = "Budget je Altersgruppe")
+```
+
+
+>>>>>>> Stashed changes
