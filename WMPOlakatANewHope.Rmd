@@ -2,18 +2,21 @@
 title: "WM-Plakat: A new hope"
 author: "Vincent Schmalor"
 date: "27.12.2019"
-output: html_document
+output:
+  word_document
 ---
 
 ```{r Setup und Funktionen, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::knit_meta(class=NULL, clean = TRUE)
+knitr::opts_knit$set(eval.after = 'fig.cap')
 library(mosaic)
 library(corrplot)
 library(kableExtra)
 library(Hmisc)
 options(scipen = 999)
 #set.seed = 2020 #Reproduzierbares Ergebnis
+fig.count <- 1
 DST.raw <- read.csv2("sources/Trainingsdaten.csv") #Daten laden
 
 flattenCorrMatrix <- function(cormat, pmat) { #Korrelations- und P-Wert-Tabellen joinen
@@ -29,6 +32,12 @@ flattenCorrMatrix <- function(cormat, pmat) { #Korrelations- und P-Wert-Tabellen
 my.fav.stats <- function(x) { #Tabelle mit FavStats für jede Spalte
       c(min = min(x), mean = mean(x), max = max(x), sd = sd(x), q1 = quantile(x, 0.25), med = median(x), q3 = quantile(x,0.75))
 }
+
+add.caption <- function() {
+  cap <- paste("Abbildung ", fig.count)
+  fig.count <- fig.count + 1
+  return(cap)
+}
 ```
 
 # Einleitung
@@ -37,7 +46,7 @@ In dem folgenden Kapitel wird diese Aufgabe bearbeitet, indem zunächst ein Übe
 Das Ergebnis ist eine csv-Datei, die das Anwendungsdatenset mit der modellierten, abhängigen Variable beinhaltet. So wird eine Prognose über diese Variable für jede Beobachtung gegeben, für die das tatsächliche Budget nicht vorliegt. Eine Zusammenfassung der Ergebnisse findet sich auch auf dem Plakat der genannten Autoren.
 
 # Vorbereitung des Datensets
-1. Die folgende Operation weist den Spalten des Datensets die korrekten sprechenden Bezeichnungen zu, um sie im späteren Verlauf besser identifizeren zu können
+1. Die folgende Operation weist den Spalten des Datensets die korrekten sprechenden Bezeichnungen zu, um sie im späteren Verlauf besser identifizieren zu können
 ```{r Spalten benennen}
 colnames(DST.raw) <- c("Beratung", "Angebote", "Bequemlichkeit", "Einkaufsatmosphaere", "Marken", "GPM", "Naehe", "Partner", "Eltern", "Verwandte", "Kommilitonen", "Kinder", "Freunde", "Arbeitskollegen", "GemNutz", "Alter", "Geschlecht", "Budget") #Vektor wird erstellt und auf die Spalten angewendet
 ```
@@ -58,8 +67,10 @@ DST.clean <- DST.clean %>% filter(!(Budget %in% OL.DS.raw)) #Filter anwenden
 ```
 
 4. Im Folgenden werden zwei abgeleitete Kennzahlen eingeführt. Die Kennzahlen leiten sich aus den Personen ab, die beschenk werden, und welche Ansprüche die Schenkenden an die Geschenke haben.
-  -Anzahl der Geschenke: Die Vermutung besteht, dass ein Zusammenhang ziwschen der Gesamtanzahl an beschenkten Personen und dem geplanten Budget besteht. Die Summe der beschenkten Personen wird daher im Folgenden als Anzahl der Geschenke verwendet.
-  -Wertschätzung: Die Vermutung besteht, dass ein Zusdammenhang zwischen der Summe der als wichtig beziechneten Geschenk- und Dienstleistungseigenschaften und dem geplanten Budget besteht. Die Summe der Wertschätzungsgrade wird daher im Folgenden als Wertschätzung verwendet.
+  
+  -Anzahl der Geschenke: Die Vermutung besteht, dass ein Zusammenhang zwischen der Gesamtanzahl an beschenkten Personen und dem geplanten Budget besteht. Die Summe der beschenkten Personen wird daher im Folgenden als Anzahl der Geschenke verwendet.
+  
+  -Wertschätzung: Die Vermutung besteht, dass ein Zusammenhang zwischen der Summe der als wichtig bezeichneten Geschenk- und Dienstleistungseigenschaften und dem geplanten Budget besteht. Die Summe der Wertschätzungsgrade wird daher im Folgenden als Wertschätzung verwendet.
 ```{r Geschenkanzahl und Wertschätzung}
 DST.extra <- mutate(DST.clean, GesAnz = Partner + Eltern + Verwandte + Kommilitonen + Kinder + Freunde + Arbeitskollegen + GemNutz)
 DST.extra <- mutate(DST.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + Einkaufsatmosphaere + Marken + GPM + Naehe)
@@ -79,13 +90,14 @@ DST.cat[cols] <- lapply(DST.cat[cols], factor) #Faktorspalten setzen
 ## Verteilungen untersuchen
 Im Folgenden werden die Daten verschieden dargestellt, um einen Überblick über die Verteilungen zu bekommen.
 
-1. gf_histogram
+### Histogramm
 
-```{r Budget-Histogramm, echo = FALSE}
+```{r Budget-Histogramm, echo = FALSE, fig.cap = cap}
 gf_histogram( ~ Budget, data = DST.num, binwidth = 50, center =  50)
+cap <- "Abbildung 1: Histogramm des Trainingsdatensets"
 ```
 
-2. gf_violin
+### Violinengrafik
 
 ```{r Budget-Violine, echo = FALSE}
 gf_violin(Budget ~ 1, draw_quantiles=c(0.25,0.5,0.75), data = DST.num) %>%
@@ -93,14 +105,14 @@ gf_point(Budget ~ 1, stat = "summary", fun.y="mean", color = "red",
 data = DST.num )
 ```
 
-3. gf_boxplot
+### Kastengrafik
 
 ```{r Budget-Boxplot, echo = FALSE}
 gf_boxplot(Budget ~ 1, data = DST.num)
 ```
 
 ## Zusammenhänge finden
-Nachdem die Grunddatenmenge visualisiert wurde, müssen für die Erstellung eines Modells die Zusammenhänge zwischen den Variablen untersucht werden. Insbesondere die Relationen zwischen allen Variablen und dem Budget sind hierbei von Relevanz. Mit der Funktion "rcorr" wird eine Korrelationsmatrix erstellt. Anhand dieser Korrelkationsmatrix lassen sich Relationen und P-Werte ablesen.
+Nachdem die Grunddatenmenge visualisiert wurde, müssen für die Erstellung eines Modells die Zusammenhänge zwischen den Variablen untersucht werden. Insbesondere die Relationen zwischen allen Variablen und dem Budget sind hierbei von Relevanz. Mit der Funktion "rcorr" wird eine Korrelationsmatrix erstellt. Anhand dieser Korrelationsmatrix lassen sich Relationen und P-Werte ablesen.
 ```{r Korrelationsmatrix erstellen}
 DST.mat <- as.matrix(data.frame(DST.num)) #Konvertierung in verwendbares Format
 CMT <- rcorr(DST.mat, type = "pearson") #Erstellung der Korrelationsmatrix
@@ -110,7 +122,7 @@ corrplot(CMT$r, type = "upper", order = "hclust", tl.col = "black", sig.level = 
 corrplot(CMT$P, type = "upper", order = "hclust", tl.col = "black", sig.level = 0.01) #Visualisierung der P-Werte aller Korrelationen zwischen allen Variablen
 ```
 
-Erwartungsgemäß bestehen starke Korrelationen zwischen Wertschätzung und deren Einflussvariablen sowie der Anzahl der Geschenke und deren Einflussfaktoren. Eine starke negative Korrelation besteht auch zwischen dem Alter und der Frage, ob Eltern beschenkt werden. Diese Erkenntnisse sind sicher einerseits interessant, andererseits auch erwartbar, aber nicht relevant in der Modellierung des Budgets. Da es keine starken Ausprägungen in den Relationen zwischen Budget und anderen Variablen gibt, wird in der nächsten Grafik der P-Wert je Korrelation dargerstellt.
+Erwartungsgemäß bestehen starke Korrelationen zwischen Wertschätzung und deren Einflussvariablen sowie der Anzahl der Geschenke und deren Einflussfaktoren. Eine starke negative Korrelation besteht auch zwischen dem Alter und der Frage, ob Eltern beschenkt werden. Diese Erkenntnisse sind sicher einerseits interessant, andererseits auch erwartbar, aber nicht relevant in der Modellierung des Budgets. Da es keine starken Ausprägungen in den Relationen zwischen Budget und anderen Variablen gibt, wird in der nächsten Grafik der P-Wert je Korrelation dargestellt.
 
 ```{r R-Werte und P-Werte in Relation setzen}
 CMT.tbl <- flattenCorrMatrix(CMT$r, CMT$P) #Tabellen joinen, um eine Tabelle zu erhalten
@@ -158,6 +170,7 @@ summary(lm.budget.Kinder)
 #GemNutz
 lm.budget.GemNutz <- lm(Budget ~ GemNutz, data = DST.num)
 plotModel(lm.budget.GemNutz, title = "Weihnachtsbudget in Relation zur Variable Soziale Institutionen")
+summary(lm.budget.GemNutz)
 
 #Alter
 lm.budget.alter <- lm(Budget ~ Alter, data = DST.num)
@@ -186,10 +199,10 @@ plotModel(lm.Gesamt) #Modell visualisieren
 summary(lm.Gesamt) #Modell in Zahlen ausdrücken
 ```
 
-Das Ergebnis zeigt, dass auch in Kobination der Variablen in einem Modell weiterhin hohe Signifikanzniveaus bestehen. Das Modell erklärt knapp 18% der Varianz. Einflüsse, wie etwa der sozioökoniomische Status der Personen würden die Güte des Modells vermutlich steigern.
+Das Ergebnis zeigt, dass auch in Kombination der Variablen in einem Modell weiterhin hohe Signifikanzniveaus bestehen. Das Modell erklärt knapp 18% der Varianz. Einflüsse, wie etwa der sozioökonomische Status der Personen würden die Güte des Modells vermutlich steigern.
 
 # Validierung des Modells
-Um die Güte des Modells zu prüfen, wird das Modell auf die resampleten Daten angewandt und mit dem Durchschnitt verglichen. Die Methodik ist hier zwei mal gelistet und wird vier mal angewandt.
+Um die Güte des Modells zu prüfen, wird das Modell auf die resampleten Daten angewandt und mit dem Durchschnitt verglichen. Die Methodik ist hier zwei Mal gelistet und wird vier Mal angewandt.
 
 ```{r Vergleich trainigsdaten}
 #Mean erstellen
@@ -198,7 +211,9 @@ DST.AVG <- DST.AVG %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berech
 avg.diff <- sum(DST.AVG$SQDiff) #Differenzen summieren
 #paste("Trainingsdaten: Die quadrierte Differenz der tatsächlichen Werte zum Durchschnitt beträgt ", avg.diff) #Differenz ausgeben
 #Modell anwenden
-DST.erglm <- predict.lm(lm.Gesamt, newdata = DST.extra, interval="prediction") #Modell anwenden
+DST.raw.extra <- mutate(DST.raw, GesAnz = Partner + Eltern + Verwandte + Kommilitonen + Kinder + Freunde + Arbeitskollegen + GemNutz) #Geschenkanzahl hinzufügen
+DST.raw.extra <- mutate(DST.raw.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + Einkaufsatmosphaere + Marken + GPM + Naehe) #Wertschätzung hinzufügen
+DST.erglm <- predict.lm(lm.Gesamt, newdata = DST.raw.extra, interval="prediction") #Modell anwenden
 DST.erglm <- head(matrix(DST.erglm), n=400) #Ergebnis kürzen
 DST.pred <- DST.raw %>% mutate(Budget2 = DST.erglm) #Ergebnis anfügen
 DST.pred <- DST.pred  %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
@@ -255,19 +270,20 @@ diff.DS.RS3.pred <- sum(DS.RS3.pred$SQDiff) #Differenzen summieren
 ```
 
 ```{r Differenzen visualisieren, echo = FALSE}
+#Dataframe aus Ergebnissen erstellen
 Trainingsdaten <- c(avg.diff, diff.DST.pred)
 Resample1 <- c(diff.DS.RS1.AVG, diff.DS.RS1.pred)
 Resample2 <- c(diff.DS.RS2.AVG, diff.DS.RS2.pred)
 Resample3 <- c(diff.DS.RS3.AVG, diff.DS.RS3.pred)
 Version <- c("AVG", "Modell")
-MTX.diff <- data.frame(Version, Trainingsdaten, Resample1, Resample2, Resample3)
-gf_point(Trainingsdaten ~ Version, data = MTX.diff, color = "green", size = 3, xlab = "Vorhersagevariante", ylab = "Differenz") %>% gf_point(Resample1 ~ Version, data = MTX.diff, color = "red", size = 3) %>% gf_point(Resample2 ~ Version, data = MTX.diff, color = "blue", size = 3) %>% gf_point(Resample3 ~ Version, data = MTX.diff, color = "yellow", size = 3)
+DF.diff <- data.frame(Version, Trainingsdaten, Resample1, Resample2, Resample3) #Spalten zusammenfügen
+gf_point(Trainingsdaten ~ Version, data = DF.diff, color = "green", size = 3, xlab = "Vorhersagevariante", ylab = "Differenz") %>% gf_point(Resample1 ~ Version, data = DF.diff, color = "red", size = 3) %>% gf_point(Resample2 ~ Version, data = DF.diff, color = "blue", size = 3) %>% gf_point(Resample3 ~ Version, data = DF.diff, color = "yellow", size = 3) #Grafik einfügen
 ```
 
-Die Grafik zeigt, dass das Modell in der Mehrzahl der Fälle unter dem Nullmodell liegt. 
+Die Grafik zeigt, dass die Differenz des erstellten Modells in allen Fällen unter der des Nullmodells liegt.
 
-# Erstellung der Ergebnisse
-Wie in der Einleitung beschrieben soll das Modell auf ein Datenset angewendet werden, das keine Budgetwerte besitzt. Das erfolgt nun in den folgenden Schritten.
+# Anwendung des Modells
+Wie in der Einleitung beschrieben soll das Modell auf ein Datenset angewendet werden, das keine Budgetwerte besitzt. Anhand des Modells wird an dieser Stelle für jede Beobachtung das geschätzte Budget geschätzt. Das Ergebnis ist ein Vektor mit geschätzten Budgets, der den entsprechenden Beobachtungen zugeordnet wird. 
 ```{r Ergebnis erstellen}
 DSA.raw <- read.csv2("sources/Anwendungsdaten.csv")
 colnames(DSA.raw) <- c("Beratung", "Angebote", "Bequemlichkeit", "Einkaufsatmosphaere", "Marken", "GPM", "Naehe", "Partner", "Eltern", "Verwandte", "Kommilitonen", "Kinder", "Freunde", "Arbeitskollegen", "GemNutz", "Alter", "Geschlecht") #Vektor wird erstellt und auf die Spalten angewendet
@@ -280,7 +296,10 @@ write.csv2(DSA.fin, "TESTPrognose_Vincent_Schmalor_Hendrick_Kaiser_Lukas_Kuepper
 ```
 
 # Untersuchung der Ergebnisse
+In diesem Kapitel soll untersucht werden, ob die ermittelten Werte plausibel sind oder unerwartete Werte auftreten. Ziel ist keine eingehende Untersuchung der Einzelfälle, sondern eine Validierung des Gesamtbildes. Unerwartete Werte wären an dieser Stelle etwa negative Budgets oder Budgets über 1000€. Eine etwa gleichmäßige Verteilung ist auch zu erwarten.
+
 ## Übersicht
+Die folgenden Kennzahlen zeigen, dass es keine extremen Ausreißer gibt und Median und Durchschnitt in einem erwartbaren Bereich liegen. Die Grafik bekräftigt diesen Eindruck.
 
 ```{r Übersicht über das Ergebnise, echo = FALSE}
 favstats(DSA.erglm)
@@ -300,3 +319,5 @@ gf_point(Budget ~ Alter, data= DSA.fin, colour = ~ Geschlecht, title = "Schätzu
 gf_point(Budget ~ GesAnz, data = DSA.fin, colour = ~ Geschlecht, title = "Schätzung - Budget je Geschenkanzahl")
 ```
 
+# Fazit
+Müssen wir noch gemeinsam schreiben, falls es da noch nichts gibt.
