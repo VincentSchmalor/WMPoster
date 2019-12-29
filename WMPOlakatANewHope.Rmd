@@ -15,7 +15,7 @@ library(corrplot)
 library(kableExtra)
 library(Hmisc)
 options(scipen = 999)
-#set.seed = 2020 #Reproduzierbares Ergebnis
+set.seed(2020) #Reproduzierbares Ergebnis
 fig.count <- 1
 DST.raw <- read.csv2("sources/Trainingsdaten.csv") #Daten laden
 
@@ -53,9 +53,13 @@ colnames(DST.raw) <- c("Beratung", "Angebote", "Bequemlichkeit", "Einkaufsatmosp
 
 2. Bevor die Daten verändert werden, wird an dieser Stelle die gesamte Stichprobe in mehrere Resamples gespeichert, um später etwa Bootstrap-Analysen durchführen zu können
 ```{r Resamples erstellen}
+set.seed(1996)
 DS.RS1 <- resample(DST.raw)
+set.seed(1993)
 DS.RS2 <- resample(DST.raw)
+set.seed(687654)
 DS.RS3 <- resample(DST.raw)
+set.seed(2020)
 ```
 
 3. Das Datenset beinhaltet einige Ausreißer, die im Vorfeld der Analyse gefiltert werden sollten. Ausreißer sind sicher auch in der Population vorhanden. Da diese jedoch nicht modelliert werden können, werden sie für die Erstellung des Modells gefiltert.
@@ -72,12 +76,14 @@ DST.clean <- DST.clean %>% filter(!(Budget %in% OL.DS.raw)) #Filter anwenden
   
   -Wertschätzung: Die Vermutung besteht, dass ein Zusammenhang zwischen der Summe der als wichtig bezeichneten Geschenk- und Dienstleistungseigenschaften und dem geplanten Budget besteht. Die Summe der Wertschätzungsgrade wird daher im Folgenden als Wertschätzung verwendet.
 ```{r Geschenkanzahl und Wertschätzung}
+DST.raw.extra <- mutate(DST.raw, GesAnz = Partner + Eltern + Verwandte + Kommilitonen + Kinder + Freunde + Arbeitskollegen + GemNutz) #Geschenkanzahl hinzufügen
+DST.raw.extra <- mutate(DST.raw.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + Einkaufsatmosphaere + Marken + GPM + Naehe) #Wertschätzung hinzufügen
 DST.extra <- mutate(DST.clean, GesAnz = Partner + Eltern + Verwandte + Kommilitonen + Kinder + Freunde + Arbeitskollegen + GemNutz)
 DST.extra <- mutate(DST.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + Einkaufsatmosphaere + Marken + GPM + Naehe)
 ```
 
-5. Alle Variablen bis auf das Alter, das Budget und die beiden neu eingeführten sind tatsächlich kategoriell, werden von R aber als numerisch klassifiziert. Das ist für viele Analysen sinnvoll, einige Visualisierungen verlangen aber den Datentyp Faktor. Für den Fall, dass bei Analysen kategorielle Variablen untersucht werden sollen, werden die kategoriellen Variablen als solche gekennzeichnet.
-```{r Variablentypen zuweisen}
+<!-- 5. Alle Variablen bis auf das Alter, das Budget und die beiden neu eingeführten sind tatsächlich kategoriell, werden von R aber als numerisch klassifiziert. Das ist für viele Analysen sinnvoll, einige Visualisierungen verlangen aber den Datentyp Faktor. Für den Fall, dass bei Analysen kategorielle Variablen untersucht werden sollen, werden die kategoriellen Variablen als solche gekennzeichnet. -->
+```{r Variablentypen zuweisen, include = FALSE}
 DST.num <- DST.extra
 cols <- c("Beratung", "Angebote", "Bequemlichkeit", "Einkaufsatmosphaere", "Marken", "GPM", "Naehe"
           , "Partner", "Eltern", "Verwandte", "Kommilitonen", "Kinder", "Freunde", "Arbeitskollegen", "GemNutz"
@@ -107,9 +113,14 @@ data = DST.num )
 
 ### Kastengrafik
 
-```{r Budget-Boxplot, echo = FALSE}
+```{r Budget-Boxplot unbereinigt, echo = FALSE}
+gf_boxplot(Budget ~ 1, data = DST.raw.extra)
+```
+
+```{r Budget-Boxplot bereinigt, echo = FALSE}
 gf_boxplot(Budget ~ 1, data = DST.num)
 ```
+
 
 ## Zusammenhänge finden
 Nachdem die Grunddatenmenge visualisiert wurde, müssen für die Erstellung eines Modells die Zusammenhänge zwischen den Variablen untersucht werden. Insbesondere die Relationen zwischen allen Variablen und dem Budget sind hierbei von Relevanz. Mit der Funktion "rcorr" wird eine Korrelationsmatrix erstellt. Anhand dieser Korrelationsmatrix lassen sich Relationen und P-Werte ablesen.
@@ -139,14 +150,26 @@ CMT.tbl.f
 Die Grafik zeigt die relativen Positionierungen von P-Werten und Korrelationsstärken. Sie korrespondieren mit den Werten der Tabelle. Nun, da die relevanten Einflussfaktoren isoliert wurden, werden ausschließlich diese Variablen weiterverwendet.
 
 ## Lineare Regressionen der relevanten Einflussvariablen
-Im vorigen Kapitel wurden relevante Korrelationen ausgewählt. Im Folgenden werden diese mit je einer Visualisierung in Form einer linearen Regression verdeutlicht.
+Im vorigen Kapitel wurden relevante Korrelationen ausgewählt. Im Folgenden werden drei Relationen in linearen modellen beispielhaft visualisiert. Für die Skalenniveaus der kategoriellen (Likertskala), der binären und der numerischen Variablen wird je ein Modell dargestellt.
 
-```{r einfache lineare Modelle erstellen, echo = FALSE}
+```{r einfache lineare Modelle erstellen, echo = TRUE}
 #Einkaufsatmosphäre
 lm.budget.Einkaufsatmosphaere <- lm(Budget ~ Einkaufsatmosphaere, data = DST.num)
 plotModel(lm.budget.Einkaufsatmosphaere, title = "Weihnachtsbudget in Relation zur Variable Einkaufsatmosphaere")
 summary(lm.budget.Einkaufsatmosphaere)
 
+#Kinder
+lm.budget.Kinder <- lm(Budget ~ Kinder, data = DST.num)
+plotModel(lm.budget.Kinder, title = "Weihnachtsbudget in Relation zur Variable Kinder")
+summary(lm.budget.Kinder)
+
+#Alter
+lm.budget.alter <- lm(Budget ~ Alter, data = DST.num)
+plotModel(lm.budget.alter, title = "Weihnachtsbudget in Relation zur Variable Alter")
+summary(lm.budget.alter)
+```
+
+```{r einfache lineare Modelle erstellen excluded, include = FALSE}
 #Marken
 lm.budget.Marken <- lm(Budget ~ Marken, data = DST.num)
 plotModel(lm.budget.Marken, title = "Weihnachtsbudget in Relation zur Variable Marken")
@@ -162,20 +185,10 @@ lm.budget.Partner <- lm(Budget ~ Partner, data = DST.num)
 plotModel(lm.budget.Partner, title = "Weihnachtsbudget in Relation zur Variable Partner")
 summary(lm.budget.Partner)
 
-#Kinder
-lm.budget.Kinder <- lm(Budget ~ Kinder, data = DST.num)
-plotModel(lm.budget.Kinder, title = "Weihnachtsbudget in Relation zur Variable Kinder")
-summary(lm.budget.Kinder)
-
 #GemNutz
 lm.budget.GemNutz <- lm(Budget ~ GemNutz, data = DST.num)
 plotModel(lm.budget.GemNutz, title = "Weihnachtsbudget in Relation zur Variable Soziale Institutionen")
 summary(lm.budget.GemNutz)
-
-#Alter
-lm.budget.alter <- lm(Budget ~ Alter, data = DST.num)
-plotModel(lm.budget.alter, title = "Weihnachtsbudget in Relation zur Variable Alter")
-summary(lm.budget.alter)
 
 #GesAnz
 lm.budget.GesAnz <- lm(Budget ~ GesAnz, data = DST.num)
@@ -209,15 +222,17 @@ Um die Güte des Modells zu prüfen, wird das Modell auf die resampleten Daten a
 DST.AVG <- DST.raw %>% mutate(Budget2 = mean(DST.raw$Budget)) #Durchschnitt berechnen
 DST.AVG <- DST.AVG %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
 avg.diff <- sum(DST.AVG$SQDiff) #Differenzen summieren
+var.DST.AVG <- (1/399) * avg.diff #Varianz berechnen
+sd.DST.AVG <- sqrt(var.DST.AVG) #Standardabweichung berechnen
 #paste("Trainingsdaten: Die quadrierte Differenz der tatsächlichen Werte zum Durchschnitt beträgt ", avg.diff) #Differenz ausgeben
 #Modell anwenden
-DST.raw.extra <- mutate(DST.raw, GesAnz = Partner + Eltern + Verwandte + Kommilitonen + Kinder + Freunde + Arbeitskollegen + GemNutz) #Geschenkanzahl hinzufügen
-DST.raw.extra <- mutate(DST.raw.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + Einkaufsatmosphaere + Marken + GPM + Naehe) #Wertschätzung hinzufügen
 DST.erglm <- predict.lm(lm.Gesamt, newdata = DST.raw.extra, interval="prediction") #Modell anwenden
 DST.erglm <- head(matrix(DST.erglm), n=400) #Ergebnis kürzen
 DST.pred <- DST.raw %>% mutate(Budget2 = DST.erglm) #Ergebnis anfügen
 DST.pred <- DST.pred  %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
 diff.DST.pred <- sum(DST.pred$SQDiff) #Differenzen summieren
+var.DST.pred <- (1/399)*diff.DST.pred #Varianz berechnen
+sd.DST.pred <- sqrt(var.DST.pred) #Standardabweichung berechnen
 #paste("Trainingsdaten: Die quadrierte Differenz der tatsächlichen Werte zum Modell beträgt ", diff.DST.pred) #Differenz ausgeben
 ```
 
@@ -226,6 +241,8 @@ diff.DST.pred <- sum(DST.pred$SQDiff) #Differenzen summieren
 DS.RS1.AVG <- DS.RS1 %>% mutate(Budget2 = mean(DST.raw$Budget)) #Durchschnitt berechnen
 DS.RS1.AVG <- DS.RS1.AVG %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
 diff.DS.RS1.AVG <- sum(DS.RS1.AVG$SQDiff) #Differenzen summieren
+var.DS.RS1.AVG <- (1/399) * diff.DS.RS1.AVG #Varianz berechnen
+sd.DS.RS1.AVG <- sqrt(var.DS.RS1.AVG) #Standardabweichung berechnen
 #paste("Resample 1: Die quadrierte Differenz der tatsächlichen Werte zum Durchschnitt beträgt ", diff.DS.RS1.AVG) #Differenz ausgeben
 DS.RS1.extra <- mutate(DS.RS1, GesAnz = Partner + Eltern + Verwandte + Kommilitonen + Kinder + Freunde + Arbeitskollegen + GemNutz) #Geschenkanzahl hinzufügen
 DS.RS1.extra <- mutate(DS.RS1.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + Einkaufsatmosphaere + Marken + GPM + Naehe) #Wertschätzung hinzufügen
@@ -234,6 +251,8 @@ DS.RS1.erglm <- head(matrix(DS.RS1.erglm), n=400) #Ergebnis kürzen
 DS.RS1.pred <- DS.RS1.extra %>% mutate(Budget2 = DS.RS1.erglm) #Ergebnisanfügen
 DS.RS1.pred <- DS.RS1.pred  %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
 diff.DS.RS1.pred <- sum(DS.RS1.pred$SQDiff) #Differenzen summieren
+var.DS.RS1.pred <- (1/399) * diff.DS.RS1.pred #Varianz berechnen
+sd.DS.RS1.pred <- sqrt(var.DS.RS1.pred) #Standardabweichung berechnen
 #paste("Resample 1: Die quadrierte Differenz der tatsächlichen Werte zum Durchschnitt beträgt ", diff.DS.RS1.pred)
 ```
 
@@ -242,6 +261,8 @@ diff.DS.RS1.pred <- sum(DS.RS1.pred$SQDiff) #Differenzen summieren
 DS.RS2.AVG <- DS.RS2 %>% mutate(Budget2 = mean(DST.raw$Budget)) #Durchschnitt berechnen
 DS.RS2.AVG <- DS.RS2.AVG %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
 diff.DS.RS2.AVG <- sum(DS.RS2.AVG$SQDiff) #Differenzen summieren
+var.DS.RS2.AVG <- (1/399) * diff.DS.RS2.AVG #Varianz berechnen
+sd.DS.RS2.AVG <- sqrt(var.DS.RS2.AVG) #Standardabweichung berechnen
 #paste("Resample 2: Die quadrierte Differenz der tatsächlichen Werte zum Durchschnitt beträgt ", diff.DS.RS2.AVG) #Differenz ausgeben
 DS.RS2.extra <- mutate(DS.RS2, GesAnz = Partner + Eltern + Verwandte + Kommilitonen + Kinder + Freunde + Arbeitskollegen + GemNutz) #Geschenkanzahl hinzufügen
 DS.RS2.extra <- mutate(DS.RS2.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + Einkaufsatmosphaere + Marken + GPM + Naehe) #Wertschätzung hinzufügen
@@ -250,6 +271,9 @@ DS.RS2.erglm <- head(matrix(DS.RS2.erglm), n=400) #Ergebnis kürzen
 DS.RS2.pred <- DS.RS2.extra %>% mutate(Budget2 = DS.RS2.erglm) #Ergebnisanfügen
 DS.RS2.pred <- DS.RS2.pred  %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
 diff.DS.RS2.pred <- sum(DS.RS2.pred$SQDiff) #Differenzen summieren
+diff.DS.RS2.pred <- sum(DS.RS2.pred$SQDiff) #Differenzen summieren
+var.DS.RS2.pred <- (1/399) * diff.DS.RS2.pred #Varianz berechnen
+sd.DS.RS2.pred <- sqrt(var.DS.RS2.pred) #Standardabweichung berechnen
 #paste("Resample 2: Die quadrierte Differenz der tatsächlichen Werte zum Durchschnitt beträgt ", diff.DS.RS2.pred)
 ```
 
@@ -258,6 +282,8 @@ diff.DS.RS2.pred <- sum(DS.RS2.pred$SQDiff) #Differenzen summieren
 DS.RS3.AVG <- DS.RS3 %>% mutate(Budget2 = mean(DST.raw$Budget)) #Durchschnitt berechnen
 DS.RS3.AVG <- DS.RS3.AVG %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
 diff.DS.RS3.AVG <- sum(DS.RS3.AVG$SQDiff) #Differenzen summieren
+var.DS.RS3.AVG <- (1/399) * diff.DS.RS3.AVG #Varianz berechnen
+sd.DS.RS3.AVG <- sqrt(var.DS.RS3.AVG) #Standardabweichung berechnen
 #paste("Resample 3: Die quadrierte Differenz der tatsächlichen Werte zum Durchschnitt beträgt ", diff.DS.RS3.AVG) #Differenz ausgeben
 DS.RS3.extra <- mutate(DS.RS3, GesAnz = Partner + Eltern + Verwandte + Kommilitonen + Kinder + Freunde + Arbeitskollegen + GemNutz) #Geschenkanzahl hinzufügen
 DS.RS3.extra <- mutate(DS.RS3.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + Einkaufsatmosphaere + Marken + GPM + Naehe) #Wertschätzung hinzufügen
@@ -266,6 +292,8 @@ DS.RS3.erglm <- head(matrix(DS.RS3.erglm), n=400) #Ergebnis kürzen
 DS.RS3.pred <- DS.RS3.extra %>% mutate(Budget2 = DS.RS3.erglm) #Ergebnisanfügen
 DS.RS3.pred <- DS.RS3.pred  %>% mutate(SQDiff = (Budget - Budget2)^2) #Differenzen berechnen
 diff.DS.RS3.pred <- sum(DS.RS3.pred$SQDiff) #Differenzen summieren
+var.DS.RS3.pred <- (1/399) * diff.DS.RS3.pred #Varianz berechnen
+sd.DS.RS3.pred <- sqrt(var.DS.RS3.pred) #Standardabweichung berechnen
 #paste("Resample 3: Die quadrierte Differenz der tatsächlichen Werte zum Durchschnitt beträgt ", diff.DS.RS3.pred)
 ```
 
@@ -278,9 +306,26 @@ Resample3 <- c(diff.DS.RS3.AVG, diff.DS.RS3.pred)
 Version <- c("AVG", "Modell")
 DF.diff <- data.frame(Version, Trainingsdaten, Resample1, Resample2, Resample3) #Spalten zusammenfügen
 gf_point(Trainingsdaten ~ Version, data = DF.diff, color = "green", size = 3, xlab = "Vorhersagevariante", ylab = "Differenz") %>% gf_point(Resample1 ~ Version, data = DF.diff, color = "red", size = 3) %>% gf_point(Resample2 ~ Version, data = DF.diff, color = "blue", size = 3) %>% gf_point(Resample3 ~ Version, data = DF.diff, color = "yellow", size = 3) #Grafik einfügen
+
+Trainingsdaten <- c(var.DST.AVG, var.DST.pred)
+Resample1 <- c(var.DS.RS1.AVG, var.DS.RS1.pred)
+Resample2 <- c(var.DS.RS2.AVG, var.DS.RS2.pred)
+Resample3 <- c(var.DS.RS3.AVG, var.DS.RS3.pred)
+Version <- c("AVG", "Modell")
+DF.var <- data.frame(Version, Trainingsdaten, Resample1, Resample2, Resample3) #Spalten zusammenfügen
+gf_point(Trainingsdaten ~ Version, data = DF.var, color = "green", size = 3, xlab = "Vorhersagevariante", ylab = "Varianz") %>% gf_point(Resample1 ~ Version, data = DF.var, color = "red", size = 3) %>% gf_point(Resample2 ~ Version, data = DF.var, color = "blue", size = 3) %>% gf_point(Resample3 ~ Version, data = DF.var, color = "yellow", size = 3) #Grafik einfügen
+
+Trainingsdaten <- c(sd.DST.AVG, sd.DST.pred)
+Resample1 <- c(sd.DS.RS1.AVG, sd.DS.RS1.pred)
+Resample2 <- c(sd.DS.RS2.AVG, sd.DS.RS2.pred)
+Resample3 <- c(sd.DS.RS3.AVG, sd.DS.RS3.pred)
+Version <- c("AVG", "Modell")
+DF.sd <- data.frame(Version, Trainingsdaten, Resample1, Resample2, Resample3) #Spalten zusammenfügen
+gf_point(Trainingsdaten ~ Version, data = DF.sd, color = "green", size = 3, xlab = "Vorhersagevariante", ylab = "Standardabweichung") %>% gf_point(Resample1 ~ Version, data = DF.sd, color = "red", size = 3) %>% gf_point(Resample2 ~ Version, data = DF.sd, color = "blue", size = 3) %>% gf_point(Resample3 ~ Version, data = DF.sd, color = "yellow", size = 3) #Grafik einfügen
+
 ```
 
-Die Grafik zeigt, dass die Differenz des erstellten Modells in allen Fällen unter der des Nullmodells liegt.
+Die Grafiken zeigen, dass die Differenz, die Varianz und die Standardabweichung des erstellten Modells in allen Fällen unter denen des Nullmodells liegen.
 
 # Anwendung des Modells
 Wie in der Einleitung beschrieben soll das Modell auf ein Datenset angewendet werden, das keine Budgetwerte besitzt. Anhand des Modells wird an dieser Stelle für jede Beobachtung das geschätzte Budget geschätzt. Das Ergebnis ist ein Vektor mit geschätzten Budgets, der den entsprechenden Beobachtungen zugeordnet wird. 
@@ -303,7 +348,7 @@ Die folgenden Kennzahlen zeigen, dass es keine extremen Ausreißer gibt und Medi
 
 ```{r Übersicht über das Ergebnise, echo = FALSE}
 favstats(DSA.erglm)
-plot(DSA.erglm)
+plot(DSA.erglm, ylab = "Budget")
 ```
 
 ## Histogramme
