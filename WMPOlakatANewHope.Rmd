@@ -1,7 +1,7 @@
 ---
-title: "WM-Plakat: A new hope"
-author: "Vincent Schmalor"
-date: "27.12.2019"
+title: "Wissenschaftliche Methodik: Poster-Wettbewerb"
+author: "Lukas Küppers, Herndrick Kaiser und Vincent Schmalor"
+date: "03.01.2020"
 output:
   word_document
 ---
@@ -42,10 +42,12 @@ add.caption <- function() {
 
 # Einleitung
 Dieses Dokument stellt sowohl die Durchführung, als auch die Protokollierung des Vorhersagewettbewerbs dar. Die Aufgabenstellung besteht darin, ein Modell aus einem Grunddatensatz zu entwickeln und dieses Modell auf einen Anwendungsdatensatz anzuwenden. Dabei wird aus mehreren Einflussvariablen eine abhängige Variable geschätzt. Der konkrete Anwendungsfall ist ein Auszug aus einem Face-to-Face Interview über das Konsum- und Schenkverhalten zu Weihnachten. Das Grunddatenset beinhaltet 400 Beobachtungen mit 17 erklärenden Variablen und die abhängige Variable des geschätzten Budgets, die es im Anwendungsdatenset zu modellieren gilt.
-In dem folgenden Kapitel wird diese Aufgabe bearbeitet, indem zunächst ein Überblick über die Daten in einer explorativen Datenanalyse gegeben wird. Anhand verschiedener Analysen und der Untersuchung der semantischen Zusammenhänge wird dann eine Vorgehensweise erarbeitet und beschrieben. 
+In dem folgenden Kapitel wird diese Aufgabe bearbeitet, indem zunächst ein Überblick über die Daten in einer explorativen Datenanalyse gegeben wird. Anhand verschiedener statistischer Analysen und der Untersuchung der semantischen Zusammenhänge wird dann eine Vorgehensweise erarbeitet und beschrieben. 
 Das Ergebnis ist eine csv-Datei, die das Anwendungsdatenset mit der modellierten, abhängigen Variable beinhaltet. So wird eine Prognose über diese Variable für jede Beobachtung gegeben, für die das tatsächliche Budget nicht vorliegt. Eine Zusammenfassung der Ergebnisse findet sich auch auf dem Plakat der genannten Autoren.
 
 # Vorbereitung des Datensets
+Nach Oliver Gansser empfiehlt es sich, vor der Analyse den Datensatz zu betrachten. Hierbei sind insbesondere die Datenstruktur von besonderer Relevanz. Außerdem fügt Oliver Gansser an, die Datenstruktur zu verändern. Aus diesem Grund wurde sich für die Vorbereitung des Datensets auf vier Punkte wie folgt festgelegt:
+
 1. Die folgende Operation weist den Spalten des Datensets die korrekten sprechenden Bezeichnungen zu, um sie im späteren Verlauf besser identifizieren zu können
 ```{r Spalten benennen}
 colnames(DST.raw) <- c("Beratung", "Angebote", "Bequemlichkeit", "Einkaufsatmosphaere", "Marken", "GPM", "Naehe", "Partner", "Eltern", "Verwandte", "Kommilitonen", "Kinder", "Freunde", "Arbeitskollegen", "GemNutz", "Alter", "Geschlecht", "Budget") #Vektor wird erstellt und auf die Spalten angewendet
@@ -70,7 +72,7 @@ paste("Ausreißer: ", paste(OL.DS.raw, collapse=", ")) #Ausreißerwerte ausgeben
 DST.clean <- DST.clean %>% filter(!(Budget %in% OL.DS.raw)) #Filter anwenden
 ```
 
-4. Im Folgenden werden zwei abgeleitete Kennzahlen eingeführt. Die Kennzahlen leiten sich aus den Personen ab, die beschenk werden, und welche Ansprüche die Schenkenden an die Geschenke haben.
+4. Im Folgenden werden zwei abgeleitete Kennzahlen eingeführt. Die Kennzahlen leiten sich aus den Personen ab, die beschenkt werden, und welche Ansprüche die Schenkenden an die Geschenke haben.
   
   -Anzahl der Geschenke: Die Vermutung besteht, dass ein Zusammenhang zwischen der Gesamtanzahl an beschenkten Personen und dem geplanten Budget besteht. Die Summe der beschenkten Personen wird daher im Folgenden als Anzahl der Geschenke verwendet.
   
@@ -94,63 +96,67 @@ DST.cat[cols] <- lapply(DST.cat[cols], factor) #Faktorspalten setzen
 
 # Explorative Datenanalyse
 ## Verteilungen untersuchen
-Im Folgenden werden die Daten verschieden dargestellt, um einen Überblick über die Verteilungen zu bekommen.
+Im Folgenden werden die Daten verschieden dargestellt, um einen Überblick über die Verteilungen zu bekommen. Hierbei zeigen ein Histogramm und eine Violinengrafik die bereits bereinigten Datensätze. Zur besseren Veranschaulichung zeigen die abschließenden Kastengrafiken sowohl die unbereinigten als auch die bereinigten Datensätze.
 
 ### Histogramm
 
-```{r Budget-Histogramm, echo = FALSE, fig.cap = cap}
-gf_histogram( ~ Budget, data = DST.num, binwidth = 50, center =  50)
-cap <- "Abbildung 1: Histogramm des Trainingsdatensets"
+```{r Budget-Histogramm, echo = FALSE}
+gf_histogram( ~ Budget, data = DST.num, binwidth = 50, center =  50, title = "Histogramm des bereinigten Datensets")
 ```
+
+Die Verteilung mit vielen Spitzen lässt sich darauf zurückführen, dass bei denb Budgetangaben lediglich grobe Schätzungen abgegeben werden und diese in den meisten Fällen auf Hunderter gerundet werden.
 
 ### Violinengrafik
 
 ```{r Budget-Violine, echo = FALSE}
-gf_violin(Budget ~ 1, draw_quantiles=c(0.25,0.5,0.75), data = DST.num) %>%
+gf_violin(Budget ~ 1, draw_quantiles=c(0.25,0.5,0.75), data = DST.num, title = "Violinengrafik des bereinigten Datensets") %>%
 gf_point(Budget ~ 1, stat = "summary", fun.y="mean", color = "red",
 data = DST.num )
 ```
 
+Die Violinengrafik zeigt, dass sich der Großteil der Daten im Bereich zwischen 250€ und 600€ befindet. Wenige Werte über dieser Grenze verschieben das arithmetische Mittel über den Median.
+
 ### Kastengrafik
 
 ```{r Budget-Boxplot unbereinigt, echo = FALSE}
-gf_boxplot(Budget ~ 1, data = DST.raw.extra)
+gf_boxplot(Budget ~ 1, data = DST.raw.extra, title = "Kastengrafik des originalen Datensets")
 ```
 
 ```{r Budget-Boxplot bereinigt, echo = FALSE}
-gf_boxplot(Budget ~ 1, data = DST.num)
+gf_boxplot(Budget ~ 1, data = DST.num, title = "Kasten des bereinigten Datensets")
 ```
 
+In der ersten Kastengrafik wird das ubereinigte Spektrum der Daten visualisiert. Die zweite Kastengrafik zeigt im Kontrast dazu die im oben beschriebenen Schritt bereinigten Daten.
 
 ## Zusammenhänge finden
-Nachdem die Grunddatenmenge visualisiert wurde, müssen für die Erstellung eines Modells die Zusammenhänge zwischen den Variablen untersucht werden. Insbesondere die Relationen zwischen allen Variablen und dem Budget sind hierbei von Relevanz. Mit der Funktion "rcorr" wird eine Korrelationsmatrix erstellt. Anhand dieser Korrelationsmatrix lassen sich Relationen und P-Werte ablesen.
+Nachdem die Grunddatenmenge visualisiert wurde, müssen für die Erstellung eines Modells die Zusammenhänge zwischen den Variablen untersucht werden. Insbesondere die Relationen zwischen allen Variablen und dem Budget sind hierbei von Relevanz. Mit der Funktion "rcorr" wird eine Korrelationsmatrix erstellt. Anhand dieser Korrelationsmatrix lassen sich Relationen und P-Werte ablesen. Diese Werte bieten eine datenbasierte Möglichkeit, die statistische Relevanz der Korrelation zu bestimmen. So können zufällig starke Korrelationen von der weiteren Betrachtung ausgeschlossen werden.
 ```{r Korrelationsmatrix erstellen}
 DST.mat <- as.matrix(data.frame(DST.num)) #Konvertierung in verwendbares Format
 CMT <- rcorr(DST.mat, type = "pearson") #Erstellung der Korrelationsmatrix
 ```
 ```{r R-Werte und P-Werte darstellen}
-corrplot(CMT$r, type = "upper", order = "hclust", tl.col = "black", sig.level = 0.01) #Visualisierung der Korrelationen aller Variablen untereinander
-corrplot(CMT$P, type = "upper", order = "hclust", tl.col = "black", sig.level = 0.01) #Visualisierung der P-Werte aller Korrelationen zwischen allen Variablen
+corrplot(CMT$r, type = "upper", order = "hclust", tl.col = "black", sig.level = 0.01, title = "Korrelationen aller Variablen") #Visualisierung der Korrelationen aller Variablen untereinander
+corrplot(CMT$P, type = "upper", order = "hclust", tl.col = "black", sig.level = 0.01, title = "P-Werte aller Variablenkorrelationen") #Visualisierung der P-Werte aller Korrelationen zwischen allen Variablen
 ```
 
-Erwartungsgemäß bestehen starke Korrelationen zwischen Wertschätzung und deren Einflussvariablen sowie der Anzahl der Geschenke und deren Einflussfaktoren. Eine starke negative Korrelation besteht auch zwischen dem Alter und der Frage, ob Eltern beschenkt werden. Diese Erkenntnisse sind sicher einerseits interessant, andererseits auch erwartbar, aber nicht relevant in der Modellierung des Budgets. Da es keine starken Ausprägungen in den Relationen zwischen Budget und anderen Variablen gibt, wird in der nächsten Grafik der P-Wert je Korrelation dargestellt.
+Erwartungsgemäß bestehen starke Korrelationen zwischen Wertschätzung und deren Einflussvariablen sowie der Geschenkanzahl und deren Einflussfaktoren. Eine starke negative Korrelation besteht auch zwischen dem Alter und der Frage, ob Eltern beschenkt werden. Diese Erkenntnisse sind sicher einerseits interessant, andererseits auch erwartbar, aber nicht relevant in der Modellierung des Budgets. Da es keine starken Ausprägungen in den Relationen zwischen Budget und anderen Variablen gibt, wird in der nächsten Grafik der P-Wert je Korrelation dargestellt.
 
 ```{r R-Werte und P-Werte in Relation setzen}
 CMT.tbl <- flattenCorrMatrix(CMT$r, CMT$P) #Tabellen joinen, um eine Tabelle zu erhalten
-gf_point(p ~ cor, data = CMT.tbl) #Visualisierung
+gf_point(p ~ cor, data = CMT.tbl, title = "P-Werte je Korrelation") #Visualisierung
 ```
 
 Wie vermutet weisen viele Korrelationen einen viel zu hohen P-Wert aus, als dass sie in der Modellierung des Budgets verwendet werden könnten. Eine Filterung auf einen angemessenen P-Wert ist daher unerlässlich. 
 ```{r P-Werte bereinigen}
 CMT.tbl.f <- filter(CMT.tbl, p < 0.03 & (row == "Budget" | column == "Budget"))
-gf_point(p ~ cor, data = CMT.tbl.f)
+gf_point(p ~ cor, data = CMT.tbl.f, title = "Gefilterte P-Werte je Korrelation")
 CMT.tbl.f
 ```
 
-Die Grafik zeigt die relativen Positionierungen von P-Werten und Korrelationsstärken. Sie korrespondieren mit den Werten der Tabelle. Nun, da die relevanten Einflussfaktoren isoliert wurden, werden ausschließlich diese Variablen weiterverwendet.
+Die Grafik zeigt die relativen Positionierungen von P-Werten und Korrelationsstärken. Sie korrespondieren mit den Werten der Tabelle. Nun, da die relevanten Einflussfaktoren isoliert wurden, werden ausschließlich diese Variablen weiterverwendet. Aus der erstellten Grafik und der abgeleiteten Tabelle weisen die Einkaufsatmosphaere (≈0.0185), die Marken (≈0.2293) und GemNutz (≈0.0109) die höchsten P-Werte auf. Diese Variablen sollten in der Analyse kritisch betrachtet und gegebenenfalls nicht verwendet werden.
 
 ## Lineare Regressionen der relevanten Einflussvariablen
-Im vorigen Kapitel wurden relevante Korrelationen ausgewählt. Im Folgenden werden drei Relationen in linearen modellen beispielhaft visualisiert. Für die Skalenniveaus der kategoriellen (Likertskala), der binären und der numerischen Variablen wird je ein Modell dargestellt.
+Im vorigen Kapitel wurden relevante Korrelationen ausgewählt. In diesem Kapitel werden drei Relationen in linearen modellen beispielhaft visualisiert. Für die Skalenniveaus der kategoriellen (Likertskala), der binären und der numerischen Variablen wird je ein Modell dargestellt.
 
 ```{r einfache lineare Modelle erstellen, echo = TRUE}
 #Einkaufsatmosphäre
@@ -202,7 +208,7 @@ summary(lm.budget.Wertsch)
 ```
 
 # Erstellung des Modells
-In den vorigen Kapiteln wurde das Datenset bearbeitet, veranschaulicht und es wurden die relevanten Einflussfaktoren auf das Budget der befragten Personen identifiziert. Um das Budget zu modellieren wird an dieser Stelle eine multiple Regression mit den identifizierten Einflussfaktoren vorgenommen. Anhand dieser Regressionsanalyse ist es möglich, ein unvollständiges Datenset zu extrapolieren. In das Modell fließen ausschlißlich die relevantesten Variablen ein, um ein Overfitting zu vermeiden und gegebenenfalls zufällige Einflüsse zu filtern. Da selbst unter den ausgewählten Einflüssen noch immer hohe P-Werte bestehen, werden in der Regression nicht alle Einflüsse berücksichtigt. Das Budget wird anhand des Alters, der Güte der Produkte und Marken, der Anzahl an beschenkten Personen und der Tatsache, ob Kinder und Partner beschenkt werden, erstellt. Diese Variablen modellieren daher in diesem Fall das Budget.
+In den vorigen Kapiteln wurde das Datenset bearbeitet, veranschaulicht und es wurden die relevanten Einflussfaktoren auf das Budget der befragten Personen identifiziert. Um das Budget zu modellieren wird an dieser Stelle eine multiple Regression mit den identifizierten Einflussfaktoren vorgenommen. Anhand dieser Regressionsanalyse ist es möglich, ein unvollständiges Datenset zu extrapolieren. In das Modell fließen ausschließlich die relevantesten Variablen ein, um ein Overfitting zu vermeiden und gegebenenfalls zufällige Einflüsse zu filtern. Da selbst unter den ausgewählten Einflüssen noch immer hohe P-Werte bestehen, werden in der Regression nicht alle Einflüsse berücksichtigt. Das Budget wird anhand des Alters, der Güte der Produkte und Marken, der Anzahl an beschenkten Personen und der Tatsache, ob Kinder und Partner beschenkt werden, erstellt. Diese Variablen modellieren daher in diesem Fall das Budget.
 
 ```{r Modell erstellen}
 lm.Gesamt <- lm(
@@ -215,7 +221,7 @@ summary(lm.Gesamt) #Modell in Zahlen ausdrücken
 Das Ergebnis zeigt, dass auch in Kombination der Variablen in einem Modell weiterhin hohe Signifikanzniveaus bestehen. Das Modell erklärt knapp 18% der Varianz. Einflüsse, wie etwa der sozioökonomische Status der Personen würden die Güte des Modells vermutlich steigern.
 
 # Validierung des Modells
-Um die Güte des Modells zu prüfen, wird das Modell auf die resampleten Daten angewandt und mit dem Durchschnitt verglichen. Die Methodik ist hier zwei Mal gelistet und wird vier Mal angewandt.
+Um die Güte des Modells zu prüfen, wird das Modell auf die resampleten Daten angewandt und mit dem Durchschnitt verglichen. Die Methodik ist hier zwei Mal gelistet und wird vier Mal angewandt. Da die Budgets in den Datensets tatsächlich vorhanden sind, kann der geschätzte Wert mit dem tatsächlichen Wert verglichen werden. Dazu werden die quadrierten Differenzen summiert. Aus dieser Kennzahl werden die Varianz und die Standardabweichung gebildet. Der direkte Vergleich des Nullmodells mit dem erarbeiteten Modell soll dann einen Anhaltspunkt dafür geben, ob das erarbeitete Modell bessere Schätzungen abgibt, als das Nullmopdell.
 
 ```{r Vergleich trainigsdaten}
 #Mean erstellen
@@ -325,7 +331,7 @@ gf_point(Trainingsdaten ~ Version, data = DF.sd, color = "green", size = 3, xlab
 
 ```
 
-Die Grafiken zeigen, dass die Differenz, die Varianz und die Standardabweichung des erstellten Modells in allen Fällen unter denen des Nullmodells liegen.
+Die Grafiken zeigen, dass die Differenz, die Varianz und die Standardabweichung des erarbeiteten Modells in allen Fällen unter denen des Nullmodells liegen. Damit besteht die Vermutung, dass das erarbeitete Modell eine bessere Vorhersage ausgeben wird, als das Nullmodell.
 
 # Anwendung des Modells
 Wie in der Einleitung beschrieben soll das Modell auf ein Datenset angewendet werden, das keine Budgetwerte besitzt. Anhand des Modells wird an dieser Stelle für jede Beobachtung das geschätzte Budget geschätzt. Das Ergebnis ist ein Vektor mit geschätzten Budgets, der den entsprechenden Beobachtungen zugeordnet wird. 
@@ -337,25 +343,27 @@ DSA.extra <- mutate(DSA.extra, Wertsch = Beratung + Angebote + Bequemlichkeit + 
 DSA.erglm <- predict.lm(lm.Gesamt, newdata = DSA.extra, interval="prediction") #Modell anwenden
 DSA.erglm <- head(matrix(DSA.erglm), n= 600)
 DSA.fin <- mutate(DSA.extra, Budget = DSA.erglm)
-write.csv2(DSA.fin, "TESTPrognose_Vincent_Schmalor_Hendrick_Kaiser_Lukas_Kueppers.csv")
+write.csv2(DSA.erglm, "Prognose_Vincent_Schmalor_Hendrick_Kaiser_Lukas_Kueppers.csv")
 ```
 
 # Untersuchung der Ergebnisse
-In diesem Kapitel soll untersucht werden, ob die ermittelten Werte plausibel sind oder unerwartete Werte auftreten. Ziel ist keine eingehende Untersuchung der Einzelfälle, sondern eine Validierung des Gesamtbildes. Unerwartete Werte wären an dieser Stelle etwa negative Budgets oder Budgets über 1000€. Eine etwa gleichmäßige Verteilung ist auch zu erwarten.
+In diesem Kapitel soll untersucht werden, ob die ermittelten Werte plausibel sind oder unerwartete Werte auftreten. Ziel ist keine eingehende Untersuchung der Einzelfälle, sondern eine Validierung des Gesamtbildes. Unerwartete Werte wären an dieser Stelle etwa negative Budgets oder Budgets über 1000€. Eine etwa gleichmäßige Verteilung ist ebenfalls anzunehmen.
 
 ## Übersicht
-Die folgenden Kennzahlen zeigen, dass es keine extremen Ausreißer gibt und Median und Durchschnitt in einem erwartbaren Bereich liegen. Die Grafik bekräftigt diesen Eindruck.
+Die folgenden Kennzahlen zeigen, dass es keine extremen Ausreißer gibt und Median und Durchschnitt in einem nach den Verteilungsuntersuchen in Kapitel "Explorative Datenanalyse" erwartbaren Bereich liegen. Die Grafik bekräftigt diesen Eindruck.
 
 ```{r Übersicht über das Ergebnise, echo = FALSE}
 favstats(DSA.erglm)
-plot(DSA.erglm, ylab = "Budget")
+plot(DSA.erglm, ylab = "Budget", title = "Darstellung aller geschätzer Budgets")
 ```
 
-## Histogramme
+## Histogramm
 
 ```{r Histogramme erglm, echo = FALSE}
-gf_histogram(~ Budget, data = DSA.fin, binwidth = 50, center = 50, title = "Schätzung - Verteilung der Beobachtungen nach Alter")
+gf_histogram(~ Budget, data = DSA.fin, binwidth = 50, center = 50, title = "Schätzung - Verteilung der Beobachtungen")
 ```
+
+Das Histogramm zeigt eine Verteilung der Budgets nach Höhe ebendessen.
 
 ## Punktwolken
 
@@ -364,5 +372,13 @@ gf_point(Budget ~ Alter, data= DSA.fin, colour = ~ Geschlecht, title = "Schätzu
 gf_point(Budget ~ GesAnz, data = DSA.fin, colour = ~ Geschlecht, title = "Schätzung - Budget je Geschenkanzahl")
 ```
 
+Die untersuchte Korrelationen von Budget und Alter und der Geschenkanzahl lassen sich auch in den geschätzten Werten finden.
+
 # Fazit
-Müssen wir noch gemeinsam schreiben, falls es da noch nichts gibt.
+Die Untersuchung der Stichprobe und die anschließende Modellierung haben einige interessante Informationen aufgedeckt. Die Forschungsfrage etwa, ob es eine statistisch relevante Korrelation zwischen dem Budget und dem Geschlecht gibt, lässt sich klar verneinen. Starke Einflussfaktoren mit hoher Relevanz sind allerdings, wie viele Personen beschenkt werden und ob Kinder beschenkt werden.
+
+Die explorative Datenanalyse hat zunächst wertvolle Informationen über Verteilungen und Schwerpunkte der Daten gegeben. Diese Verteilung lässt sich später auch in den geschätzten Werten wiederfinden. Ein Überblick über die Korrelationen und deren Relevanz hat zu einer engen Auswahl an relevanten Variablen geführt. Die auf diesem Weg ermittelten Variablen sind in das Modell eingeflossen und wurden damit bei der Schätzung der unbekannten Werte im Zieldatenset verwendet.
+
+Mit Hilfe der resampleten Stichproben konnte ein Hinweis auf die Validitat des Modells gegeben werden. Eine Bestätigung darüber, ob das gewählte Modell auch die unbekannten Daten gut vorhersagt, ist das allerdings nicht. In den vier Durchgängen wurde mit dem entwickelten Modell immer eine geringere Standardabweichung erzielt, als es das Nullmodell tat. Die Untersuchung der geschätzten Werte hat ebenfalls ergeben, dass das Modell korrekt angewendet wurde. Die Zusammenhänge von Alter, Geschenkanzahl und Budget lassen sich in den  geschätzten Werten wiederfinden. Auch die oberen und unteren Werte befinden sich in etwa auf dem Niveau, wie es die Budgets der Trainingsdaten taten. Eine gewisse Aussagekraft des Modells lässt sich auch aus dem Wert des bereinigten R-Quadrats der linearen Regression von knapp 18% und der hohen statistischen Relevanz, die durch den sehr geringen P-Wert ausgedrückt wird, ableiten.
+
+Zusammenfassend kann man festhalten, dass das festgelegte Ziel der Datenanalyse, -modellierung und -validierung erreicht wurde. Das Modell schätzt die Werte in einem erwartbaren Bereich unter der Berücksichtigung rationaler Zusammenhänge und weist bessere Werte in der Validierung auf als das arithmetische Mittel. Allerdings liegt die Standardabweichung bei etwa 400€. Auch das R-Quadrat von knapp 19% belegt, dass ein Großteil der Varianz nicht erklärt werden konnte. Für eine bessere Modellierung müssten weitere Variablen wie etwa das Einkommensniveau vorliegen. Anhand der vorliegenden Daten wurde daher ein Modell entwickelt, das die Budgets mit gesteigerter Genauigkeit schätzt, ohne dabei zu sehr auf die Trainingsdaten zugeschnitten zu sein.
